@@ -315,3 +315,51 @@ export const MeetingsResponseSchema = z.object({
   data: z.array(MeetingSchema),
   next_cursor: z.string().optional(),
 });
+
+// Select Option
+export const SelectOptionIdSchema = z.object({
+  workspace_id: z.string(),
+  object_id: z.string(),
+  attribute_id: z.string(),
+  option_id: z.string(),
+});
+
+export const SelectOptionSchema = z.object({
+  id: SelectOptionIdSchema,
+  title: z.string(),
+  is_archived: z.boolean(),
+});
+
+export type SelectOption = z.infer<typeof SelectOptionSchema>;
+
+export const SelectOptionsResponseSchema = z.object({
+  data: z.array(SelectOptionSchema),
+});
+
+// Status
+export const StatusIdSchema = z.object({
+  workspace_id: z.string(),
+  object_id: z.string(),
+  attribute_id: z.string(),
+  status_id: z.string(),
+});
+
+export const StatusSchema = z.object({
+  id: StatusIdSchema,
+  title: z.string(),
+  is_archived: z.boolean(),
+  celebration_enabled: z.boolean(),
+  target_time_in_status: z.string().nullable().optional(), // ISO-8601 duration
+});
+
+export type Status = z.infer<typeof StatusSchema>;
+
+export const StatusesResponseSchema = z.object({
+  data: z.array(StatusSchema),
+});
+
+// Attribute with values (for convenience commands)
+export type AttributeWithValues = Attribute & {
+  select_options?: SelectOption[];
+  statuses?: Status[];
+};

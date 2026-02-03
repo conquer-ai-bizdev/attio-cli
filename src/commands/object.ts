@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { AttioClient } from '../api/client';
 import { ObjectEndpoints } from '../api/endpoints/objects';
+import { AttributeEndpoints } from '../api/endpoints/attributes';
 import { formatJson } from '../formatters/json';
 import { formatGenericTable } from '../formatters/table';
 import { formatCsv } from '../formatters/csv';
@@ -105,6 +106,61 @@ export function createObjectCommand(): Command {
             unique: attr.is_unique,
             system: attr.is_system_attribute,
           }));
+          console.log(formatGenericTable(tableData));
+        } else if (options.format === 'csv') {
+          console.log(formatCsv(attributes));
+        } else {
+          console.log(formatJson(attributes));
+        }
+      } catch (error) {
+        if (error instanceof Error) {
+          console.error(`Error: ${error.message}`);
+          process.exit(1);
+        }
+        throw error;
+      }
+    });
+
+  // List attributes with values (convenience command)
+  object
+    .command('attributes-with-values')
+    .description(
+      'List attributes for an object with their possible values (select options/statuses)'
+    )
+    .argument('<object-slug>', 'Object slug (e.g., people, companies)')
+    .option('--show-archived', 'Include archived attributes and options')
+    .option('--format <format>', 'Output format (json|table|csv)', 'json')
+    .action(async (objectSlug: string, options) => {
+      try {
+        const client = new AttioClient(options.apiKey);
+        const attributeApi = new AttributeEndpoints(client);
+
+        const attributes = await attributeApi.listAttributesWithValues(
+          'objects',
+          objectSlug,
+          { show_archived: options.showArchived }
+        );
+
+        if (options.format === 'table') {
+          const tableData = attributes.map((attr) => {
+            const baseData: Record<string, unknown> = {
+              slug: attr.api_slug,
+              title: attr.title,
+              type: attr.type,
+              required: attr.is_required,
+              unique: attr.is_unique,
+            };
+
+            if (attr.select_options) {
+              baseData.options = attr.select_options
+                .map((opt) => opt.title)
+                .join(', ');
+            } else if (attr.statuses) {
+              baseData.statuses = attr.statuses.map((s) => s.title).join(', ');
+            }
+
+            return baseData;
+          });
           console.log(formatGenericTable(tableData));
         } else if (options.format === 'csv') {
           console.log(formatCsv(attributes));

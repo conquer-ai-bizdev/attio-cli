@@ -8,8 +8,10 @@ import {
   ListEntrySchema,
   AttributeValueHistory,
   AttributeValueHistorySchema,
+  Attribute,
 } from '../types';
 import { validate } from '../../utils/validation';
+import { AttributeEndpoints } from './attributes';
 
 export interface ListOptions {
   limit?: number;
@@ -72,7 +74,11 @@ export interface UpdateListData {
 }
 
 export class ListEndpoints {
-  constructor(private client: AttioClient) {}
+  private attributeEndpoints: AttributeEndpoints;
+
+  constructor(private client: AttioClient) {
+    this.attributeEndpoints = new AttributeEndpoints(client);
+  }
 
   async listLists(options?: ListOptions): Promise<List[]> {
     const params: Record<string, unknown> = {};
@@ -172,5 +178,21 @@ export class ListEndpoints {
     const response = await this.client.patch(`/lists/${listSlug}`, data);
     const dataResponse = response as { data: unknown };
     return validate(ListSchema, dataResponse.data);
+  }
+
+  // Delegate attribute operations to AttributeEndpoints for consistency
+  async listAttributes(listSlug: string): Promise<Attribute[]> {
+    return this.attributeEndpoints.listAttributes('lists', listSlug);
+  }
+
+  async getAttribute(
+    listSlug: string,
+    attributeSlug: string
+  ): Promise<Attribute> {
+    return this.attributeEndpoints.getAttribute(
+      'lists',
+      listSlug,
+      attributeSlug
+    );
   }
 }

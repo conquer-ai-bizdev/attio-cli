@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { AttioClient } from '../api/client';
 import { ListEndpoints, UpdateListData } from '../api/endpoints/lists';
+import { AttributeEndpoints } from '../api/endpoints/attributes';
 import { formatJson } from '../formatters/json';
 import { formatGenericTable } from '../formatters/table';
 import { formatCsv } from '../formatters/csv';
@@ -194,6 +195,98 @@ export function createListCommand(): Command {
           console.log(formatCsv(listData));
         } else {
           console.log(formatJson(listData));
+        }
+      } catch (error) {
+        if (error instanceof Error) {
+          console.error(`Error: ${error.message}`);
+          process.exit(1);
+        }
+        throw error;
+      }
+    });
+
+  // List attributes
+  list
+    .command('attributes')
+    .description('List attributes for a list')
+    .argument('<list-slug>', 'List slug or ID')
+    .option('--format <format>', 'Output format (json|table|csv)', 'json')
+    .action(async (listSlug: string, options) => {
+      try {
+        const client = new AttioClient(options.apiKey);
+        const listApi = new ListEndpoints(client);
+
+        const attributes = await listApi.listAttributes(listSlug);
+
+        if (options.format === 'table') {
+          const tableData = attributes.map((attr) => ({
+            slug: attr.api_slug,
+            title: attr.title,
+            type: attr.type,
+            required: attr.is_required,
+            unique: attr.is_unique,
+            system: attr.is_system_attribute,
+          }));
+          console.log(formatGenericTable(tableData));
+        } else if (options.format === 'csv') {
+          console.log(formatCsv(attributes));
+        } else {
+          console.log(formatJson(attributes));
+        }
+      } catch (error) {
+        if (error instanceof Error) {
+          console.error(`Error: ${error.message}`);
+          process.exit(1);
+        }
+        throw error;
+      }
+    });
+
+  // List attributes with values (convenience command)
+  list
+    .command('attributes-with-values')
+    .description(
+      'List attributes for a list with their possible values (select options/statuses)'
+    )
+    .argument('<list-slug>', 'List slug or ID')
+    .option('--show-archived', 'Include archived attributes and options')
+    .option('--format <format>', 'Output format (json|table|csv)', 'json')
+    .action(async (listSlug: string, options) => {
+      try {
+        const client = new AttioClient(options.apiKey);
+        const attributeApi = new AttributeEndpoints(client);
+
+        const attributes = await attributeApi.listAttributesWithValues(
+          'lists',
+          listSlug,
+          { show_archived: options.showArchived }
+        );
+
+        if (options.format === 'table') {
+          const tableData = attributes.map((attr) => {
+            const baseData: Record<string, unknown> = {
+              slug: attr.api_slug,
+              title: attr.title,
+              type: attr.type,
+              required: attr.is_required,
+              unique: attr.is_unique,
+            };
+
+            if (attr.select_options) {
+              baseData.options = attr.select_options
+                .map((opt) => opt.title)
+                .join(', ');
+            } else if (attr.statuses) {
+              baseData.statuses = attr.statuses.map((s) => s.title).join(', ');
+            }
+
+            return baseData;
+          });
+          console.log(formatGenericTable(tableData));
+        } else if (options.format === 'csv') {
+          console.log(formatCsv(attributes));
+        } else {
+          console.log(formatJson(attributes));
         }
       } catch (error) {
         if (error instanceof Error) {

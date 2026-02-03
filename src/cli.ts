@@ -9,6 +9,7 @@ import { createEntryCommand } from './commands/entry';
 import { createNoteCommand } from './commands/note';
 import { createTaskCommand } from './commands/task';
 import { createMeetingCommand } from './commands/meeting';
+import { createAttributeCommand } from './commands/attribute';
 
 const program = new Command();
 
@@ -33,5 +34,6 @@ program.addCommand(createEntryCommand());
 program.addCommand(createNoteCommand());
 program.addCommand(createTaskCommand());
 program.addCommand(createMeetingCommand());
+program.addCommand(createAttributeCommand());
 
 program.parse();

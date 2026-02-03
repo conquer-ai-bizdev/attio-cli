@@ -3,13 +3,17 @@ import {
   ObjectsResponseSchema,
   ObjectSchema,
   ObjectType,
-  AttributesResponseSchema,
   Attribute,
 } from '../types';
 import { validate } from '../../utils/validation';
+import { AttributeEndpoints } from './attributes';
 
 export class ObjectEndpoints {
-  constructor(private client: AttioClient) {}
+  private attributeEndpoints: AttributeEndpoints;
+
+  constructor(private client: AttioClient) {
+    this.attributeEndpoints = new AttributeEndpoints(client);
+  }
 
   async listObjects(): Promise<ObjectType[]> {
     const response = await this.client.get('/objects');
@@ -23,22 +27,19 @@ export class ObjectEndpoints {
     return validate(ObjectSchema, dataResponse.data);
   }
 
+  // Delegate attribute operations to AttributeEndpoints for consistency
   async listAttributes(objectSlug: string): Promise<Attribute[]> {
-    const response = await this.client.get(
-      `/objects/${objectSlug}/attributes`
-    );
-    const validated = validate(AttributesResponseSchema, response);
-    return validated.data;
+    return this.attributeEndpoints.listAttributes('objects', objectSlug);
   }
 
   async getAttribute(
     objectSlug: string,
     attributeSlug: string
   ): Promise<Attribute> {
-    const response = await this.client.get(
-      `/objects/${objectSlug}/attributes/${attributeSlug}`
+    return this.attributeEndpoints.getAttribute(
+      'objects',
+      objectSlug,
+      attributeSlug
     );
-    const dataResponse = response as { data: unknown };
-    return validate(AttributesResponseSchema, dataResponse).data[0];
   }
 }
