@@ -42,27 +42,67 @@ describe('WorkspaceEndpoints', () => {
       expect(result[0].first_name).toBe('John');
     });
 
-    it('should pass limit and offset options', async () => {
-      const mockResponse = { data: [] };
+    it('should apply limit client-side', async () => {
+      const mockResponse = {
+        data: [
+          {
+            id: { workspace_id: 'ws-1', workspace_member_id: 'mem-1' },
+            first_name: 'A',
+            last_name: 'B',
+            email_address: 'a@b.com',
+            avatar_url: null,
+            access_level: 'admin',
+            created_at: '2024-01-01T00:00:00Z',
+          },
+          {
+            id: { workspace_id: 'ws-1', workspace_member_id: 'mem-2' },
+            first_name: 'C',
+            last_name: 'D',
+            email_address: 'c@d.com',
+            avatar_url: null,
+            access_level: 'member',
+            created_at: '2024-01-01T00:00:00Z',
+          },
+        ],
+      };
       vi.mocked(mockClient.get).mockResolvedValue(mockResponse);
 
-      await workspaceEndpoints.listMembers({ limit: 10, offset: 5 });
+      const result = await workspaceEndpoints.listMembers({ limit: 1 });
 
-      expect(mockClient.get).toHaveBeenCalledWith('/workspace_members', {
-        limit: 10,
-        offset: 5,
-      });
+      expect(mockClient.get).toHaveBeenCalledWith('/workspace_members', {});
+      expect(result).toHaveLength(1);
+      expect(result[0].first_name).toBe('A');
     });
 
-    it('should pass only limit when offset is not provided', async () => {
-      const mockResponse = { data: [] };
+    it('should apply offset client-side', async () => {
+      const mockResponse = {
+        data: [
+          {
+            id: { workspace_id: 'ws-1', workspace_member_id: 'mem-1' },
+            first_name: 'A',
+            last_name: 'B',
+            email_address: 'a@b.com',
+            avatar_url: null,
+            access_level: 'admin',
+            created_at: '2024-01-01T00:00:00Z',
+          },
+          {
+            id: { workspace_id: 'ws-1', workspace_member_id: 'mem-2' },
+            first_name: 'C',
+            last_name: 'D',
+            email_address: 'c@d.com',
+            avatar_url: null,
+            access_level: 'member',
+            created_at: '2024-01-01T00:00:00Z',
+          },
+        ],
+      };
       vi.mocked(mockClient.get).mockResolvedValue(mockResponse);
 
-      await workspaceEndpoints.listMembers({ limit: 10 });
+      const result = await workspaceEndpoints.listMembers({ offset: 1 });
 
-      expect(mockClient.get).toHaveBeenCalledWith('/workspace_members', {
-        limit: 10,
-      });
+      expect(result).toHaveLength(1);
+      expect(result[0].first_name).toBe('C');
     });
 
     it('should validate response against schema', async () => {
@@ -96,7 +136,7 @@ describe('WorkspaceEndpoints', () => {
         created_at: '2024-01-01T00:00:00.000000000Z',
       };
 
-      vi.mocked(mockClient.get).mockResolvedValue(mockMember);
+      vi.mocked(mockClient.get).mockResolvedValue({ data: mockMember });
 
       const result = await workspaceEndpoints.getMember('mem-456');
 
@@ -111,7 +151,7 @@ describe('WorkspaceEndpoints', () => {
         // Missing required fields
       };
 
-      vi.mocked(mockClient.get).mockResolvedValue(invalidMember);
+      vi.mocked(mockClient.get).mockResolvedValue({ data: invalidMember });
 
       await expect(workspaceEndpoints.getMember('mem-456')).rejects.toThrow();
     });

@@ -2,6 +2,7 @@
 
 import { Command } from 'commander';
 import { createWorkspaceCommand } from './commands/workspace';
+import { createObjectCommand } from './commands/object';
 
 const program = new Command();
 
@@ -18,5 +19,6 @@ program.option(
 
 // Add commands
 program.addCommand(createWorkspaceCommand());
+program.addCommand(createObjectCommand());
 
 program.parse();

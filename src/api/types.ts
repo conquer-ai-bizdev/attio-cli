@@ -56,8 +56,8 @@ export const ObjectSchema = z.object({
   singular_noun: z.string(),
   plural_noun: z.string(),
   created_at: TimestampSchema,
-  is_built_in: z.boolean(),
-  is_workspace_level: z.boolean(),
+  is_built_in: z.boolean().optional(),
+  is_workspace_level: z.boolean().optional(),
 });
 
 export type ObjectType = z.infer<typeof ObjectSchema>;
@@ -105,7 +105,7 @@ export const AttributeSchema = z.object({
   id: AttributeIdSchema,
   api_slug: z.string(),
   title: z.string(),
-  description: z.string().optional(),
+  description: z.string().nullable().optional(),
   type: AttributeTypeSchema,
   is_system_attribute: z.boolean(),
   is_unique: z.boolean(),
