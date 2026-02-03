@@ -132,6 +132,18 @@ export const AttributeValueSchema = z.object({
   active_until: TimestampSchema.optional(),
 });
 
+// Attribute Value History (for entry attribute values)
+export const AttributeValueHistorySchema = z.object({
+  attribute_id: z.string(),
+  value: z.unknown(),
+  created_at: TimestampSchema,
+  created_by_actor: CreatedBySchema.optional(),
+  active_from: TimestampSchema.optional(),
+  active_until: TimestampSchema.optional(),
+});
+
+export type AttributeValueHistory = z.infer<typeof AttributeValueHistorySchema>;
+
 // Record
 export const RecordIdSchema = z.object({
   workspace_id: z.string(),

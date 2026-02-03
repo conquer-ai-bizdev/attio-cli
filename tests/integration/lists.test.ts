@@ -157,4 +157,76 @@ describe('Lists Integration Tests', () => {
       ).rejects.toThrow();
     });
   });
+
+  describe('Create and Update List', () => {
+    let createdListSlug: string | null = null;
+
+    afterAll(async () => {
+      // NOTE: Attio API has no DELETE /lists endpoint
+      // Manual cleanup required
+      if (createdListSlug) {
+        console.warn(`Manual cleanup needed for list: ${createdListSlug}`);
+      }
+    });
+
+    it('should create a new list', async () => {
+      const timestamp = Date.now();
+      const testSlug = `test_list_${timestamp}`;
+
+      const list = await listApi.createList({
+        data: {
+          api_slug: testSlug,
+          name: `Test List ${timestamp}`,
+          parent_object: 'people',
+          workspace_access: 'full-access',
+          workspace_member_access: [],
+        },
+      });
+
+      expect(list).toBeDefined();
+      expect(list.api_slug).toBe(testSlug);
+      expect(list.name).toBe(`Test List ${timestamp}`);
+      // API returns parent_object as array even though we send it as string
+      expect(list.parent_object).toEqual(['people']);
+
+      createdListSlug = list.api_slug;
+    });
+
+    it('should update the created list', async () => {
+      if (!createdListSlug) {
+        throw new Error('List not created');
+      }
+
+      const updatedName = `Updated List ${Date.now()}`;
+
+      const list = await listApi.updateList(createdListSlug, {
+        data: {
+          name: updatedName,
+        },
+      });
+
+      expect(list).toBeDefined();
+      expect(list.api_slug).toBe(createdListSlug);
+      expect(list.name).toBe(updatedName);
+    });
+
+    it.skip('should update list workspace access', async () => {
+      // SKIP: Cannot update workspace_access when workspace_member_access is empty
+      // API requires at least one member with full access
+      // This test would need to create the list with workspace members or add members before updating
+      if (!createdListSlug) {
+        throw new Error('List not created');
+      }
+
+      const list = await listApi.updateList(createdListSlug, {
+        data: {
+          workspace_access: 'read-and-write',
+        },
+      });
+
+      expect(list).toBeDefined();
+      expect(list.api_slug).toBe(createdListSlug);
+      expect(list.workspace_access).toBe('read-and-write');
+    });
+  });
 });

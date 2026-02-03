@@ -65,6 +65,15 @@ interface ApiErrorResponse {
     errors?: Array<{ field: string; message: string }>;
   };
   message?: string;
+  code?: string;
+  type?: string;
+  validation_errors?: Array<{
+    code: string;
+    path: string[];
+    message: string;
+    expected?: string;
+    received?: string;
+  }>;
 }
 
 export function parseApiError(
@@ -75,8 +84,8 @@ export function parseApiError(
   const errorData = data as ApiErrorResponse;
   let message =
     errorData?.error?.message || errorData?.message || 'Unknown error';
-  const code = errorData?.error?.code || 'unknown_error';
-  const type = errorData?.error?.type || 'api_error';
+  const code = errorData?.error?.code || errorData?.code || 'unknown_error';
+  const type = errorData?.error?.type || errorData?.type || 'api_error';
 
   if (statusCode === 429) {
     return new RateLimitError(retryAfter || 60, message);
@@ -94,6 +103,7 @@ export function parseApiError(
     return new AuthorizationError(message);
   }
 
+  // Handle validation errors from error.errors format
   if (statusCode === 400 && errorData?.error?.errors) {
     // Enhanced error message for validation errors
     const fieldErrors = errorData.error.errors
@@ -101,6 +111,19 @@ export function parseApiError(
       .join(', ');
     message = `${message} - ${fieldErrors}`;
     return new ValidationError(errorData.error.errors, message);
+  }
+
+  // Handle validation errors from root-level validation_errors format
+  if (statusCode === 400 && errorData?.validation_errors) {
+    const fieldErrors = errorData.validation_errors
+      .map((e) => `${e.path.join('.')}: ${e.message}`)
+      .join(', ');
+    message = `${message} - ${fieldErrors}`;
+    const formattedErrors = errorData.validation_errors.map((e) => ({
+      field: e.path.join('.'),
+      message: e.message,
+    }));
+    return new ValidationError(formattedErrors, message);
   }
 
   // Add helpful hints for common filter/attribute errors

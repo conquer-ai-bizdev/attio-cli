@@ -286,4 +286,66 @@ describe('Records Integration Tests', () => {
       });
     });
   });
+
+  describe('Assert Record (Upsert)', () => {
+    let assertTestRecordId: string | null = null;
+
+    afterAll(async () => {
+      // Cleanup assert test record
+      if (assertTestRecordId) {
+        try {
+          await recordApi.deleteRecord('people', assertTestRecordId);
+          console.log(`Cleaned up assert test record: ${assertTestRecordId}`);
+        } catch (error) {
+          console.warn(`Failed to cleanup assert test record: ${error}`);
+        }
+      }
+    });
+
+    it('should assert a new record when no match exists', async () => {
+      const timestamp = Date.now();
+      const testEmail = `test-assert-${timestamp}@integration-test.example.com`;
+
+      const record = await recordApi.assertRecord('people', 'email_addresses', {
+        data: {
+          values: {
+            email_addresses: [{ email_address: testEmail }],
+          },
+        },
+      });
+
+      expect(record).toBeDefined();
+      expect(record.id.record_id).toBeDefined();
+      expect(record.values.email_addresses).toBeDefined();
+
+      assertTestRecordId = record.id.record_id;
+    });
+
+    it('should assert existing record when match found', async () => {
+      if (!assertTestRecordId) {
+        throw new Error('Assert test record not created');
+      }
+
+      // Get the existing record to find the email
+      const existingRecord = await recordApi.getRecord('people', assertTestRecordId);
+      const emailArray = existingRecord.values.email_addresses as Array<{ email_address?: string }>;
+      const testEmail = emailArray[0]?.email_address;
+
+      if (!testEmail) {
+        throw new Error('Test email not found in record');
+      }
+
+      // Assert again with same email - should return same record ID
+      const record = await recordApi.assertRecord('people', 'email_addresses', {
+        data: {
+          values: {
+            email_addresses: [{ email_address: testEmail }],
+          },
+        },
+      });
+
+      expect(record).toBeDefined();
+      expect(record.id.record_id).toBe(assertTestRecordId); // Same record ID
+    });
+  });
 });

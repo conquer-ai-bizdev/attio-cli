@@ -84,8 +84,8 @@ export class RecordEndpoints {
     matchingAttribute: string,
     data: CreateRecordData
   ): Promise<AttioRecord> {
-    const response = await this.client.post(
-      `/objects/${objectSlug}/records:assert?matching_attribute=${matchingAttribute}`,
+    const response = await this.client.put(
+      `/objects/${objectSlug}/records?matching_attribute=${matchingAttribute}`,
       data
     );
     const dataResponse = response as { data: unknown };

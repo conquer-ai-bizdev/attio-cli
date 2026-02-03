@@ -232,6 +232,55 @@ export function createRecordCommand(): Command {
       }
     });
 
+  record
+    .command('assert')
+    .description('Assert (upsert) a record using matching attribute')
+    .argument('<object>', 'Object slug (e.g., people, companies, deals)')
+    .requiredOption('--matching-attribute <slug>', 'Attribute to match on (e.g., email_addresses)')
+    .requiredOption('--data <json>', 'Record data as JSON')
+    .option('--format <format>', 'Output format (json|table|csv)', 'json')
+    .action(async (objectSlug: string, options) => {
+      try {
+        const client = new AttioClient(options.apiKey);
+        const recordApi = new RecordEndpoints(client);
+
+        let data;
+        try {
+          data = JSON.parse(options.data);
+        } catch (error) {
+          console.error('Error: Invalid JSON in --data option');
+          console.error('Example: --data \'{"email_addresses":[{"email_address":"test@example.com"}]}\'');
+          process.exit(1);
+        }
+
+        const rec = await recordApi.assertRecord(
+          objectSlug,
+          options.matchingAttribute,
+          { data }
+        );
+
+        if (options.format === 'table') {
+          const tableData = {
+            record_id: rec.id.record_id,
+            object_id: rec.id.object_id,
+            ...flattenValues(rec.values),
+            created_at: new Date(rec.created_at).toISOString(),
+          };
+          console.log(formatGenericTable([tableData]));
+        } else if (options.format === 'csv') {
+          console.log(formatCsv(rec));
+        } else {
+          console.log(formatJson(rec));
+        }
+      } catch (error) {
+        if (error instanceof Error) {
+          console.error(`Error: ${error.message}`);
+          process.exit(1);
+        }
+        throw error;
+      }
+    });
+
   return record;
 }
 
