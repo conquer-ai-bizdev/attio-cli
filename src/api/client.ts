@@ -50,6 +50,17 @@ export class AttioClient {
     const statusCode = error.response?.status || 500;
     const data = error.response?.data;
 
+    // Log error details for debugging
+    if (process.env.DEBUG_API_ERRORS) {
+      console.error('API Error Details:', JSON.stringify({
+        status: statusCode,
+        url: config.url,
+        method: config.method,
+        data: data,
+        requestBody: config.data,
+      }, null, 2));
+    }
+
     // Handle rate limiting with retry
     if (statusCode === 429) {
       const retryAfterHeader = error.response?.headers['retry-after'];

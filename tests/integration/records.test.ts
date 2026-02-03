@@ -62,16 +62,15 @@ describe('Records Integration Tests', () => {
   });
 
   describe('Create, Get, Update, Delete Record', () => {
-    it.skip('should create a new person record', async () => {
+    it('should create a new person record', async () => {
+      const timestamp = Date.now();
+      const testEmail = `test-cli-${timestamp}@integration-test.example.com`;
+
+      // Correct format: data.values is required
       const testData = {
         data: {
           values: {
-            email_addresses: [
-              {
-                email_address: `test-cli-${Date.now()}@example.com`,
-                original_email_address: `test-cli-${Date.now()}@example.com`,
-              },
-            ],
+            email_addresses: [{email_address: testEmail}],
           },
         },
       };
@@ -81,12 +80,14 @@ describe('Records Integration Tests', () => {
       expect(record).toBeDefined();
       expect(record.id.record_id).toBeDefined();
       expect(record.values).toBeDefined();
+      expect(record.values.email_addresses).toBeDefined();
 
       // Save for later tests and cleanup
       testRecordId = record.id.record_id;
+      console.log(`✓ Created test record with ID: ${testRecordId}`);
     });
 
-    it.skip('should get the created record', async () => {
+    it('should get the created record', async () => {
       if (!testRecordId) {
         throw new Error('No test record created');
       }
@@ -96,9 +97,12 @@ describe('Records Integration Tests', () => {
       expect(record).toBeDefined();
       expect(record.id.record_id).toBe(testRecordId);
       expect(record.values).toBeDefined();
+      expect(record.values.email_addresses).toBeDefined();
+
+      console.log(`✓ Retrieved test record: ${testRecordId}`);
     });
 
-    it.skip('should update the record', async () => {
+    it('should update the record with a name', async () => {
       if (!testRecordId) {
         throw new Error('No test record created');
       }
@@ -106,12 +110,11 @@ describe('Records Integration Tests', () => {
       const updateData = {
         data: {
           values: {
-            email_addresses: [
-              {
-                email_address: `updated-test-${Date.now()}@example.com`,
-                original_email_address: `updated-test-${Date.now()}@example.com`,
-              },
-            ],
+            name: {
+              first_name: 'IntegrationTest',
+              last_name: 'User',
+              full_name: 'IntegrationTest User',
+            },
           },
         },
       };
@@ -124,11 +127,23 @@ describe('Records Integration Tests', () => {
 
       expect(record).toBeDefined();
       expect(record.id.record_id).toBe(testRecordId);
-      // Values should be updated
       expect(record.values).toBeDefined();
+      expect(record.values.name).toBeDefined();
+
+      // Verify the name was actually updated
+      const nameValues = record.values.name as Array<{
+        first_name?: string;
+        last_name?: string;
+        full_name?: string;
+      }>;
+      expect(nameValues.length).toBeGreaterThan(0);
+      expect(nameValues[0].first_name).toBe('IntegrationTest');
+      expect(nameValues[0].full_name).toBe('IntegrationTest User');
+
+      console.log(`✓ Updated test record: ${testRecordId}`);
     });
 
-    it.skip('should delete the record', async () => {
+    it('should delete the record', async () => {
       if (!testRecordId) {
         throw new Error('No test record created');
       }
@@ -139,6 +154,8 @@ describe('Records Integration Tests', () => {
       await expect(
         recordApi.getRecord('people', testRecordId)
       ).rejects.toThrow();
+
+      console.log(`✓ Deleted test record: ${testRecordId}`);
 
       // Mark as null so afterAll doesn't try to delete again
       testRecordId = null;
