@@ -270,12 +270,14 @@ export const MeetingIdSchema = z.object({
 export const MeetingSchema = z.object({
   id: MeetingIdSchema,
   title: z.string(),
-  start_at: TimestampSchema,
-  end_at: TimestampSchema,
-  organizer: z.object({
-    referenced_actor_type: z.string(),
-    referenced_actor_id: z.string(),
-  }),
+  start_at: TimestampSchema.optional(),
+  end_at: TimestampSchema.optional(),
+  organizer: z
+    .object({
+      referenced_actor_type: z.string(),
+      referenced_actor_id: z.string(),
+    })
+    .optional(),
   attendees: z
     .array(
       z.object({
@@ -287,8 +289,8 @@ export const MeetingSchema = z.object({
   linked_records: z
     .array(
       z.object({
-        target_object: z.string(),
-        target_record_id: z.string(),
+        target_object: z.string().optional(),
+        target_record_id: z.string().optional(),
       })
     )
     .optional(),
