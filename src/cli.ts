@@ -7,6 +7,7 @@ import { createRecordCommand } from './commands/record';
 import { createListCommand } from './commands/list';
 import { createEntryCommand } from './commands/entry';
 import { createNoteCommand } from './commands/note';
+import { createTaskCommand } from './commands/task';
 
 const program = new Command();
 
@@ -29,5 +30,6 @@ program.addCommand(createRecordCommand());
 program.addCommand(createListCommand());
 program.addCommand(createEntryCommand());
 program.addCommand(createNoteCommand());
+program.addCommand(createTaskCommand());
 
 program.parse();

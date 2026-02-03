@@ -229,16 +229,16 @@ export const TaskIdSchema = z.object({
 
 export const TaskSchema = z.object({
   id: TaskIdSchema,
-  content: z.string(),
+  content: z.string().optional(),
   content_plaintext: z.string(),
-  deadline_at: TimestampSchema.optional(),
+  deadline_at: TimestampSchema.nullable().optional(),
   is_completed: z.boolean(),
   completed_at: TimestampSchema.optional(),
   linked_records: z
     .array(
       z.object({
-        target_object: z.string(),
-        target_record_id: z.string(),
+        target_object: z.string().optional(),
+        target_record_id: z.string().optional(),
       })
     )
     .optional(),
