@@ -145,7 +145,7 @@ export const RecordSchema = z.object({
   created_at: TimestampSchema,
 });
 
-export type Record = z.infer<typeof RecordSchema>;
+export type AttioRecord = z.infer<typeof RecordSchema>;
 
 export const RecordsResponseSchema = z.object({
   data: z.array(RecordSchema),

@@ -3,6 +3,7 @@
 import { Command } from 'commander';
 import { createWorkspaceCommand } from './commands/workspace';
 import { createObjectCommand } from './commands/object';
+import { createRecordCommand } from './commands/record';
 
 const program = new Command();
 
@@ -21,5 +22,6 @@ program.option('--verbose', 'Show detailed error messages');
 // Add commands
 program.addCommand(createWorkspaceCommand());
 program.addCommand(createObjectCommand());
+program.addCommand(createRecordCommand());
 
 program.parse();

@@ -1,0 +1,217 @@
+import { Command } from 'commander';
+import { AttioClient } from '../api/client';
+import { RecordEndpoints } from '../api/endpoints/records';
+import { formatJson } from '../formatters/json';
+import { formatGenericTable } from '../formatters/table';
+import { formatCsv } from '../formatters/csv';
+
+export function createRecordCommand(): Command {
+  const record = new Command('record').description(
+    'Manage records (people, companies, deals)'
+  );
+
+  // List records
+  record
+    .command('list')
+    .description('List records for an object')
+    .argument('<object>', 'Object slug (e.g., people, companies, deals)')
+    .option('--limit <number>', 'Maximum records to return', parseInt)
+    .option('--offset <number>', 'Number of records to skip', parseInt)
+    .option('--format <format>', 'Output format (json|table|csv)', 'json')
+    .action(async (objectSlug: string, options) => {
+      try {
+        const client = new AttioClient(options.apiKey);
+        const recordApi = new RecordEndpoints(client);
+
+        const records = await recordApi.listRecords(objectSlug, {
+          limit: options.limit,
+          offset: options.offset,
+        });
+
+        if (options.format === 'table') {
+          const tableData = records.map((rec) => ({
+            record_id: rec.id.record_id,
+            ...flattenValues(rec.values),
+            created_at: new Date(rec.created_at).toISOString(),
+          }));
+          console.log(formatGenericTable(tableData));
+        } else if (options.format === 'csv') {
+          console.log(formatCsv(records));
+        } else {
+          console.log(formatJson(records));
+        }
+      } catch (error) {
+        if (error instanceof Error) {
+          console.error(`Error: ${error.message}`);
+          process.exit(1);
+        }
+        throw error;
+      }
+    });
+
+  // Get record
+  record
+    .command('get')
+    .description('Get a specific record')
+    .argument('<object>', 'Object slug (e.g., people, companies, deals)')
+    .argument('<record-id>', 'Record ID')
+    .option('--format <format>', 'Output format (json|table|csv)', 'json')
+    .action(async (objectSlug: string, recordId: string, options) => {
+      try {
+        const client = new AttioClient(options.apiKey);
+        const recordApi = new RecordEndpoints(client);
+
+        const rec = await recordApi.getRecord(objectSlug, recordId);
+
+        if (options.format === 'table') {
+          const tableData = [
+            {
+              record_id: rec.id.record_id,
+              ...flattenValues(rec.values),
+              created_at: new Date(rec.created_at).toISOString(),
+            },
+          ];
+          console.log(formatGenericTable(tableData));
+        } else if (options.format === 'csv') {
+          console.log(formatCsv(rec));
+        } else {
+          console.log(formatJson(rec));
+        }
+      } catch (error) {
+        if (error instanceof Error) {
+          console.error(`Error: ${error.message}`);
+          process.exit(1);
+        }
+        throw error;
+      }
+    });
+
+  // Create record
+  record
+    .command('create')
+    .description('Create a new record')
+    .argument('<object>', 'Object slug (e.g., people, companies, deals)')
+    .requiredOption('--data <json>', 'Record data as JSON string')
+    .option('--format <format>', 'Output format (json|table|csv)', 'json')
+    .action(async (objectSlug: string, options) => {
+      try {
+        const client = new AttioClient(options.apiKey);
+        const recordApi = new RecordEndpoints(client);
+
+        const data = JSON.parse(options.data);
+        const rec = await recordApi.createRecord(objectSlug, { data });
+
+        if (options.format === 'table') {
+          const tableData = [
+            {
+              record_id: rec.id.record_id,
+              ...flattenValues(rec.values),
+              created_at: new Date(rec.created_at).toISOString(),
+            },
+          ];
+          console.log(formatGenericTable(tableData));
+        } else if (options.format === 'csv') {
+          console.log(formatCsv(rec));
+        } else {
+          console.log(formatJson(rec));
+        }
+      } catch (error) {
+        if (error instanceof Error) {
+          console.error(`Error: ${error.message}`);
+          process.exit(1);
+        }
+        throw error;
+      }
+    });
+
+  // Update record
+  record
+    .command('update')
+    .description('Update an existing record')
+    .argument('<object>', 'Object slug (e.g., people, companies, deals)')
+    .argument('<record-id>', 'Record ID')
+    .requiredOption('--data <json>', 'Updated data as JSON string')
+    .option('--format <format>', 'Output format (json|table|csv)', 'json')
+    .action(async (objectSlug: string, recordId: string, options) => {
+      try {
+        const client = new AttioClient(options.apiKey);
+        const recordApi = new RecordEndpoints(client);
+
+        const data = JSON.parse(options.data);
+        const rec = await recordApi.updateRecord(objectSlug, recordId, {
+          data,
+        });
+
+        if (options.format === 'table') {
+          const tableData = [
+            {
+              record_id: rec.id.record_id,
+              ...flattenValues(rec.values),
+              created_at: new Date(rec.created_at).toISOString(),
+            },
+          ];
+          console.log(formatGenericTable(tableData));
+        } else if (options.format === 'csv') {
+          console.log(formatCsv(rec));
+        } else {
+          console.log(formatJson(rec));
+        }
+      } catch (error) {
+        if (error instanceof Error) {
+          console.error(`Error: ${error.message}`);
+          process.exit(1);
+        }
+        throw error;
+      }
+    });
+
+  // Delete record
+  record
+    .command('delete')
+    .description('Delete a record')
+    .argument('<object>', 'Object slug (e.g., people, companies, deals)')
+    .argument('<record-id>', 'Record ID')
+    .action(async (objectSlug: string, recordId: string, options) => {
+      try {
+        const client = new AttioClient(options.apiKey);
+        const recordApi = new RecordEndpoints(client);
+
+        await recordApi.deleteRecord(objectSlug, recordId);
+        console.log(`Record ${recordId} deleted successfully`);
+      } catch (error) {
+        if (error instanceof Error) {
+          console.error(`Error: ${error.message}`);
+          process.exit(1);
+        }
+        throw error;
+      }
+    });
+
+  return record;
+}
+
+// Helper to flatten record values for display
+function flattenValues(values: Record<string, unknown>): Record<string, string> {
+  const flattened: Record<string, string> = {};
+
+  for (const [key, value] of Object.entries(values)) {
+    if (Array.isArray(value) && value.length > 0) {
+      // Take first value if array
+      const firstValue = value[0];
+      if (firstValue && typeof firstValue === 'object' && 'value' in firstValue) {
+        const val = (firstValue as { value: unknown }).value;
+        if (typeof val === 'object' && val !== null) {
+          flattened[key] = JSON.stringify(val);
+        } else {
+          flattened[key] = String(val);
+        }
+      } else {
+        flattened[key] = JSON.stringify(value);
+      }
+    } else {
+      flattened[key] = JSON.stringify(value);
+    }
+  }
+
+  return flattened;
+}
