@@ -1,66 +1,179 @@
 # Attio CLI
 
-A fully-typed TypeScript CLI for managing Attio CRM via REST API.
+> A production-grade, fully-typed TypeScript CLI for managing [Attio CRM](https://attio.com) via REST API.
+
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue.svg)](https://www.typescriptlang.org/)
+[![Tests](https://img.shields.io/badge/tests-112%20passing-brightgreen.svg)](#testing)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+---
 
 ## Features
 
-- **Fully typed** with TypeScript strict mode and Zod validation
-- **Multiple output formats**: JSON, Table, CSV
-- **Comprehensive API coverage**: Workspace members, Objects, Attributes
-- **Rate limit handling**: Automatic retry with exponential backoff
-- **Integration tested**: All endpoints validated against live Attio API
+### 🎯 Core Capabilities
+- **Workspace Management** - List and manage workspace members with role-based access
+- **Objects & Attributes** - Full CRUD for custom objects, attributes, select options, and statuses
+- **Records** - Query, create, update, and delete people, companies, and deals with advanced filtering
+- **Lists & Entries** - Manage lists and their entries with attribute values
+- **Notes & Tasks** - Create and organize notes and tasks linked to records
+- **Meetings** - Read-only access to meeting data
+
+### 🚀 Developer Experience
+- **Fully Typed** - TypeScript strict mode with Zod runtime validation
+- **Multiple Formats** - JSON, Table, and CSV output for all commands
+- **Smart Filtering** - Advanced query syntax with `$eq`, `$contains`, `$gt`, etc.
+- **Error Handling** - Automatic retry with exponential backoff for rate limits
+- **Integration Tested** - 112 tests validated against live Attio API
+
+### 🛠️ Advanced Features
+- **Attribute Management** - Unified commands for both objects and lists
+- **Convenience Commands** - `attributes-with-values` fetches complete schemas in one call
+- **Batch Operations** - Assert (upsert) records by matching attributes
+- **Schema Export** - Export complete object/list definitions as JSON or CSV
+
+---
+
+## Table of Contents
+
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Authentication](#authentication)
+- [Commands](#commands)
+  - [Workspace](#workspace)
+  - [Objects](#objects)
+  - [Attributes](#attributes)
+  - [Records](#records)
+  - [Lists](#lists)
+  - [Entries](#entries)
+  - [Notes](#notes)
+  - [Tasks](#tasks)
+  - [Meetings](#meetings)
+- [Output Formats](#output-formats)
+- [Filtering & Sorting](#filtering--sorting)
+- [Development](#development)
+- [Testing](#testing)
+- [Contributing](#contributing)
+- [License](#license)
+
+---
 
 ## Installation
+
+### Via npm (Recommended)
 
 ```bash
 npm install -g attio-cli
 ```
 
-Or use directly with npx:
+### Via npx (No Installation)
 
 ```bash
 npx attio-cli --help
 ```
 
+### From Source
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/attio-cli.git
+cd attio-cli
+
+# Install dependencies
+npm install
+
+# Build
+npm run build
+
+# Link globally
+npm link
+
+# Verify installation
+attio --version
+```
+
+---
+
 ## Quick Start
 
-### 1. Get your API key
+### 1. Get Your API Key
 
-Get your Attio API key from: https://app.attio.com/settings/api
+1. Navigate to [Attio Settings > API](https://app.attio.com/settings/api)
+2. Click **Create new token**
+3. Copy your API key (starts with `attio_sk_`)
 
-### 2. Set up environment
+### 2. Configure Authentication
 
-Create a `.env` file or export the environment variable:
-
-```bash
-export ATTIO_API_KEY="your_api_key_here"
-```
-
-Or pass it directly:
+**Option A: Environment Variable (Recommended)**
 
 ```bash
-attio --api-key your_api_key_here workspace members list
+export ATTIO_API_KEY="attio_sk_your_key_here"
 ```
 
-### 3. Run your first command
+Add to your `.bashrc`, `.zshrc`, or `.env` file for persistence:
+
+```bash
+echo 'export ATTIO_API_KEY="attio_sk_your_key_here"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+**Option B: Per-Command Flag**
+
+```bash
+attio --api-key attio_sk_your_key_here workspace members list
+```
+
+### 3. Verify Setup
 
 ```bash
 # List workspace members
-attio workspace members list
+attio workspace members list --format table
 
-# Get objects in table format
+# Get all objects
 attio object list --format table
 
-# List attributes for people object
-attio object attributes people --format json
-
-# Export to CSV
-attio workspace members list --format csv > members.csv
+# Query people records
+attio record list people --limit 5 --format json
 ```
 
-## Available Commands
+---
 
-### Workspace Members
+## Authentication
+
+### Environment Variable
+
+The CLI reads `ATTIO_API_KEY` from your environment:
+
+```bash
+export ATTIO_API_KEY="attio_sk_your_key_here"
+attio workspace members list
+```
+
+### .env File
+
+Create a `.env` file in your working directory:
+
+```bash
+# .env
+ATTIO_API_KEY=attio_sk_your_key_here
+```
+
+The CLI automatically loads `.env` files using `dotenv`.
+
+### Command-Line Override
+
+Override the environment variable for a single command:
+
+```bash
+attio --api-key attio_sk_different_key object list
+```
+
+---
+
+## Commands
+
+### Workspace
+
+Manage workspace members and settings.
 
 ```bash
 # List all workspace members
@@ -70,7 +183,24 @@ attio workspace members list [--limit <n>] [--offset <n>] [--format json|table|c
 attio workspace members get <member-id> [--format json|table|csv]
 ```
 
+**Examples:**
+
+```bash
+# List first 10 members as table
+attio workspace members list --limit 10 --format table
+
+# Get specific member details
+attio workspace members get wm_abc123 --format json
+
+# Export all members to CSV
+attio workspace members list --format csv > members.csv
+```
+
+---
+
 ### Objects
+
+Manage objects (people, companies, deals, custom objects).
 
 ```bash
 # List all objects
@@ -82,13 +212,31 @@ attio object get <slug> [--format json|table|csv]
 # List attributes for an object
 attio object attributes <object-slug> [--format json|table|csv]
 
-# List attributes WITH their possible values (convenience command)
+# Get complete object schema with attribute values
 attio object attributes-with-values <object-slug> [--show-archived] [--format json|table|csv]
 ```
 
-### Attributes (Complete CRUD)
+**Examples:**
 
-The `attribute` command provides full control over attributes for both objects and lists.
+```bash
+# List all objects
+attio object list --format table
+
+# Get people object details
+attio object get people --format json
+
+# List attributes for companies
+attio object attributes companies --format table
+
+# Export complete people schema (attributes + select options + statuses)
+attio object attributes-with-values people --format json > people-schema.json
+```
+
+---
+
+### Attributes
+
+Complete CRUD operations for attributes, select options, and statuses. Works with both **objects** and **lists**.
 
 #### List & Get Attributes
 
@@ -98,11 +246,19 @@ attio attribute list <target> <identifier> [--show-archived] [--format json|tabl
 
 # Get a specific attribute
 attio attribute get <target> <identifier> <attribute-slug> [--format json|table|csv]
+```
 
-# Examples:
+**Examples:**
+
+```bash
+# List attributes for people object
 attio attribute list objects people --format table
+
+# Get specific attribute
 attio attribute get objects companies industry --format json
-attio attribute list lists my_list --format table
+
+# List attributes for a list
+attio attribute list lists my_sales_pipeline --format table
 ```
 
 #### Create & Update Attributes
@@ -112,7 +268,7 @@ attio attribute list lists my_list --format table
 attio attribute create <target> <identifier> \
   --title "Attribute Title" \
   --slug attribute_slug \
-  --type text|number|select|status|... \
+  --type text|number|select|status|checkbox|date|... \
   [--description "..."] \
   [--required] \
   [--unique] \
@@ -126,23 +282,36 @@ attio attribute update <target> <identifier> <attribute-slug> \
   [--required true|false] \
   [--unique true|false] \
   [--format json|table|csv]
-
-# Note: Attributes cannot be deleted via API, only archived
-
-# Examples:
-attio attribute create objects people --title "Department" --slug department --type select
-attio attribute update objects people department --title "Team" --required true
-attio attribute update objects people department --description "Archived - no longer used"
 ```
 
-**⚠️ Important**:
-- Attributes **cannot be deleted** via the Attio API
-- Status attributes can **only be created on lists and custom objects**, not built-in objects like "people"
+**⚠️ Important**: Attributes **cannot be deleted** via the Attio API, only archived by updating their description.
+
+**Examples:**
+
+```bash
+# Create a text attribute
+attio attribute create objects people \
+  --title "LinkedIn URL" \
+  --slug linkedin_url \
+  --type text
+
+# Create a required select attribute
+attio attribute create objects companies \
+  --title "Industry" \
+  --slug industry \
+  --type select \
+  --required
+
+# Update attribute
+attio attribute update objects companies industry \
+  --title "Industry Sector" \
+  --description "Primary industry classification"
+```
 
 #### Select Options Management
 
 ```bash
-# List select options for an attribute
+# List select options
 attio attribute options <target> <identifier> <attribute-slug> [--show-archived] [--format json|table|csv]
 
 # Create a select option
@@ -156,23 +325,39 @@ attio attribute option-update <target> <identifier> <attribute-slug> <option-id>
   [--archived true|false] \
   [--format json|table|csv]
 
-# Archive a select option (recommended over delete)
+# Archive a select option
 attio attribute option-archive <target> <identifier> <attribute-slug> <option-id>
+```
 
-# Examples:
-attio attribute options objects companies industry --format table
+**Examples:**
+
+```bash
+# Create industry select attribute with options
+attio attribute create objects companies --title "Industry" --slug industry --type select
+
+# Add options
 attio attribute option-create objects companies industry --title "Technology"
-attio attribute option-update objects companies industry abc123 --title "Tech & SaaS"
-attio attribute option-archive objects companies industry abc123
+attio attribute option-create objects companies industry --title "Healthcare"
+attio attribute option-create objects companies industry --title "Finance"
+
+# List all options
+attio attribute options objects companies industry --format table
+
+# Update an option
+attio attribute option-update objects companies industry opt_xyz123 \
+  --title "Technology & Software"
+
+# Archive an option
+attio attribute option-archive objects companies industry opt_old456
 ```
 
 #### Status Management
 
 ```bash
-# List statuses for a status attribute
+# List statuses
 attio attribute statuses <target> <identifier> <attribute-slug> [--show-archived] [--format json|table|csv]
 
-# Create a status (on lists or custom objects only)
+# Create a status
 attio attribute status-create <target> <identifier> <attribute-slug> \
   --title "Status Title" \
   [--celebration] \
@@ -185,17 +370,150 @@ attio attribute status-update <target> <identifier> <attribute-slug> <status-id>
   [--archived true|false] \
   [--format json|table|csv]
 
-# Archive a status (recommended over delete)
+# Archive a status
 attio attribute status-archive <target> <identifier> <attribute-slug> <status-id>
-
-# Examples (note: use lists for status attributes):
-attio attribute statuses lists my_pipeline deal_status --format table
-attio attribute status-create lists my_pipeline deal_status --title "Qualified" --celebration
-attio attribute status-update lists my_pipeline deal_status xyz789 --title "Qualified Lead"
-attio attribute status-archive lists my_pipeline deal_status xyz789
 ```
 
+**⚠️ Important**: Status attributes can **only be created on lists and custom objects**, not built-in objects like "people", "companies", or "deals".
+
+**Examples:**
+
+```bash
+# Create status attribute on a list
+attio attribute create lists sales_pipeline \
+  --title "Deal Stage" \
+  --slug deal_stage \
+  --type status
+
+# Add statuses
+attio attribute status-create lists sales_pipeline deal_stage --title "Prospecting"
+attio attribute status-create lists sales_pipeline deal_stage --title "Qualified"
+attio attribute status-create lists sales_pipeline deal_stage --title "Proposal"
+attio attribute status-create lists sales_pipeline deal_stage --title "Closed Won" --celebration
+
+# List all statuses
+attio attribute statuses lists sales_pipeline deal_stage --format table
+
+# Update status
+attio attribute status-update lists sales_pipeline deal_stage st_abc123 \
+  --title "Qualified Lead" \
+  --celebration false
+
+# Archive status
+attio attribute status-archive lists sales_pipeline deal_stage st_old789
+```
+
+---
+
+### Records
+
+Query, create, update, and delete records (people, companies, deals).
+
+```bash
+# List records with filtering and sorting
+attio record list <object> \
+  [--limit <n>] \
+  [--offset <n>] \
+  [--filter <json>] \
+  [--sort <json>] \
+  [--format json|table|csv]
+
+# Get specific record
+attio record get <object> <record-id> [--format json|table|csv]
+
+# Create a new record
+attio record create <object> --data <json> [--format json|table|csv]
+
+# Update an existing record
+attio record update <object> <record-id> --data <json> [--format json|table|csv]
+
+# Delete a record
+attio record delete <object> <record-id>
+
+# Assert (upsert) a record by matching attribute
+attio record assert <object> \
+  --matching-attribute <slug> \
+  --data <json> \
+  [--format json|table|csv]
+```
+
+**Examples:**
+
+```bash
+# List all people
+attio record list people --limit 10 --format table
+
+# Query people by name
+attio record list people \
+  --filter '{"name":{"first_name":{"$eq":"John"}}}' \
+  --format json
+
+# Query people by email contains
+attio record list people \
+  --filter '{"email_addresses":{"email_address":{"$contains":"@acme.com"}}}' \
+  --format table
+
+# Query with multiple conditions
+attio record list people \
+  --filter '{"$and":[{"name":{"first_name":{"$eq":"John"}}},{"name":{"last_name":{"$eq":"Smith"}}}]}' \
+  --format json
+
+# Sort results
+attio record list companies \
+  --sort '[{"attribute":"name","direction":"asc"}]' \
+  --limit 20 \
+  --format table
+
+# Create a person
+attio record create people --data '{
+  "values": {
+    "name": {
+      "first_name": "Jane",
+      "last_name": "Doe",
+      "full_name": "Jane Doe"
+    },
+    "email_addresses": [{
+      "email_address": "jane.doe@example.com",
+      "is_primary": true
+    }]
+  }
+}'
+
+# Update a record
+attio record update people rec_abc123 --data '{
+  "values": {
+    "name": {
+      "first_name": "Janet",
+      "last_name": "Doe",
+      "full_name": "Janet Doe"
+    }
+  }
+}'
+
+# Upsert a person by email (creates if not exists, updates if exists)
+attio record assert people \
+  --matching-attribute email_addresses \
+  --data '{
+    "values": {
+      "email_addresses": [{
+        "email_address": "jane.doe@example.com"
+      }],
+      "name": {
+        "first_name": "Jane",
+        "last_name": "Doe"
+      }
+    }
+  }'
+
+# Delete a record
+attio record delete people rec_abc123
+```
+
+---
+
 ### Lists
+
+Manage lists and their configurations.
 
 ```bash
 # List all lists
@@ -221,146 +539,655 @@ attio list update <list-slug> \
 # List attributes for a list
 attio list attributes <list-slug> [--format json|table|csv]
 
-# List attributes WITH their possible values (convenience command)
+# Get complete list schema with attribute values
 attio list attributes-with-values <list-slug> [--show-archived] [--format json|table|csv]
 ```
 
+**Examples:**
+
+```bash
+# List all lists
+attio list list-all --format table
+
+# Create a sales pipeline list
+attio list create \
+  --api-slug sales_pipeline \
+  --name "Sales Pipeline" \
+  --parent-object companies \
+  --workspace-access full-access
+
+# Get list details
+attio list get sales_pipeline --format json
+
+# Update list
+attio list update sales_pipeline --name "Q1 Sales Pipeline"
+
+# Export complete list schema
+attio list attributes-with-values sales_pipeline --format json > pipeline-schema.json
+```
+
+---
+
+### Entries
+
+Manage list entries.
+
+```bash
+# List entries in a list
+attio entry list <list-slug> \
+  [--limit <n>] \
+  [--offset <n>] \
+  [--filter <json>] \
+  [--sort <json>] \
+  [--format json|table|csv]
+
+# Get specific entry
+attio entry get <list-slug> <entry-id> [--format json|table|csv]
+
+# Create an entry
+attio entry create <list-slug> \
+  --parent-record <record-id> \
+  --parent-object <object-slug> \
+  --data <json> \
+  [--format json|table|csv]
+
+# Update an entry
+attio entry update <list-slug> <entry-id> --data <json> [--format json|table|csv]
+
+# Delete an entry
+attio entry delete <list-slug> <entry-id>
+
+# Assert (upsert) an entry
+attio entry assert <list-slug> \
+  --parent-record <record-id> \
+  --parent-object <object-slug> \
+  --data <json> \
+  [--format json|table|csv]
+```
+
+**Examples:**
+
+```bash
+# List all entries in sales pipeline
+attio entry list sales_pipeline --format table
+
+# Create an entry
+attio entry create sales_pipeline \
+  --parent-record rec_company123 \
+  --parent-object companies \
+  --data '{"entry_values":{"deal_stage":"qualified"}}'
+
+# Update entry
+attio entry update sales_pipeline ent_abc123 \
+  --data '{"entry_values":{"deal_stage":"proposal"}}'
+
+# Delete entry
+attio entry delete sales_pipeline ent_abc123
+```
+
+---
+
+### Notes
+
+Manage notes linked to records.
+
+```bash
+# List notes for a record
+attio note list <parent-object> <parent-record-id> \
+  [--limit <n>] \
+  [--offset <n>] \
+  [--format json|table|csv]
+
+# Get specific note
+attio note get <note-id> [--format json|table|csv]
+
+# Create a note
+attio note create \
+  --parent-object <object-slug> \
+  --parent-record <record-id> \
+  --title "Note Title" \
+  --content "Note content" \
+  [--format plaintext|markdown|html] \
+  [--format-output json|table|csv]
+
+# Update a note
+attio note update <note-id> \
+  [--title "New Title"] \
+  [--content "New content"] \
+  [--format plaintext|markdown|html] \
+  [--format-output json|table|csv]
+
+# Delete a note
+attio note delete <note-id>
+```
+
+**Examples:**
+
+```bash
+# List notes for a person
+attio note list people rec_person123 --format table
+
+# Create a note
+attio note create \
+  --parent-object people \
+  --parent-record rec_person123 \
+  --title "Meeting Notes" \
+  --content "Discussed Q1 objectives" \
+  --format markdown
+
+# Update note
+attio note update note_abc123 \
+  --title "Q1 Meeting Notes" \
+  --content "# Q1 Objectives\n- Revenue goals\n- Product roadmap"
+
+# Delete note
+attio note delete note_abc123
+```
+
+---
+
+### Tasks
+
+Manage tasks linked to records.
+
+```bash
+# List tasks for a record
+attio task list <parent-object> <parent-record-id> \
+  [--limit <n>] \
+  [--offset <n>] \
+  [--format json|table|csv]
+
+# Get specific task
+attio task get <task-id> [--format json|table|csv]
+
+# Create a task
+attio task create \
+  --content "Task description" \
+  [--deadline <iso8601-date>] \
+  [--assignee <workspace-member-id>] \
+  [--linked-record <record-id>] \
+  [--format json|table|csv]
+
+# Update a task
+attio task update <task-id> \
+  [--content "Updated description"] \
+  [--completed true|false] \
+  [--deadline <iso8601-date>] \
+  [--format json|table|csv]
+
+# Delete a task
+attio task delete <task-id>
+```
+
+**Examples:**
+
+```bash
+# List all tasks for a person
+attio task list people rec_person123 --format table
+
+# Create a task
+attio task create \
+  --content "Follow up on proposal" \
+  --deadline "2024-03-15T10:00:00Z" \
+  --assignee wm_member123 \
+  --linked-record rec_company456
+
+# Mark task as completed
+attio task update task_abc123 --completed true
+
+# Update deadline
+attio task update task_abc123 --deadline "2024-03-20T10:00:00Z"
+
+# Delete task
+attio task delete task_abc123
+```
+
+---
+
+### Meetings
+
+View meetings (read-only access).
+
+```bash
+# List meetings for a record
+attio meeting list <parent-object> <parent-record-id> \
+  [--limit <n>] \
+  [--offset <n>] \
+  [--format json|table|csv]
+
+# Get specific meeting
+attio meeting get <meeting-id> [--format json|table|csv]
+```
+
+**Examples:**
+
+```bash
+# List meetings for a person
+attio meeting list people rec_person123 --format table
+
+# Get meeting details
+attio meeting get meeting_abc123 --format json
+
+# Export meetings to CSV
+attio meeting list people rec_person123 --format csv > meetings.csv
+```
+
+---
+
 ## Output Formats
 
-### JSON (default)
-Pretty-printed JSON output:
+All commands support three output formats:
+
+### JSON (Default)
+
+Pretty-printed JSON for programmatic use:
+
 ```bash
 attio workspace members list --format json
 ```
 
 ### Table
-Human-readable table:
+
+Human-readable ASCII table:
+
 ```bash
 attio workspace members list --format table
 ```
 
 ### CSV
-CSV format for spreadsheets:
+
+CSV format for spreadsheet import:
+
 ```bash
 attio workspace members list --format csv > members.csv
 ```
 
-## Global Options
+---
 
-- `--api-key <key>`: Override ATTIO_API_KEY environment variable
-- `--verbose`: Show detailed error messages
-- `--help`: Show help for any command
-- `--version`: Show CLI version
+## Filtering & Sorting
 
-## Examples
+### Filter Syntax
 
-### List workspace members with limit
+Use JSON-based filter queries with the `--filter` option:
+
+#### Basic Operators
+
+| Operator | Description | Example |
+|----------|-------------|---------|
+| `$eq` | Exact match | `{"name":{"first_name":{"$eq":"John"}}}` |
+| `$ne` | Not equal | `{"status":{"$ne":"archived"}}` |
+| `$contains` | Contains substring | `{"email":{"$contains":"@acme.com"}}` |
+| `$starts_with` | Starts with | `{"name":{"$starts_with":"J"}}` |
+| `$ends_with` | Ends with | `{"email":{"$ends_with":".com"}}` |
+| `$gt` / `$gte` | Greater than (or equal) | `{"created_at":{"$gt":"2024-01-01"}}` |
+| `$lt` / `$lte` | Less than (or equal) | `{"amount":{"$lte":1000}}` |
+
+#### Logical Operators
+
 ```bash
-attio workspace members list --limit 10 --format table
+# AND condition
+--filter '{"$and":[{"name":{"first_name":{"$eq":"John"}}},{"name":{"last_name":{"$eq":"Smith"}}}]}'
+
+# OR condition
+--filter '{"$or":[{"status":{"$eq":"active"}},{"status":{"$eq":"pending"}}]}'
 ```
 
-### Get all objects as JSON
+#### Examples
+
 ```bash
-attio object list --format json
+# Find people named John
+attio record list people \
+  --filter '{"name":{"first_name":{"$eq":"John"}}}'
+
+# Find companies with emails ending in .com
+attio record list companies \
+  --filter '{"email_addresses":{"email_address":{"$ends_with":".com"}}}'
+
+# Find people with multiple conditions
+attio record list people \
+  --filter '{"$and":[
+    {"name":{"last_name":{"$eq":"Smith"}}},
+    {"email_addresses":{"email_address":{"$contains":"@acme.com"}}}
+  ]}'
 ```
 
-### Export people attributes to CSV
+### Sort Syntax
+
+Use JSON arrays with the `--sort` option:
+
 ```bash
-attio object attributes people --format csv > people-attributes.csv
+# Sort by name ascending
+attio record list people \
+  --sort '[{"attribute":"name","direction":"asc"}]'
+
+# Sort by multiple fields
+attio record list companies \
+  --sort '[
+    {"attribute":"created_at","direction":"desc"},
+    {"attribute":"name","direction":"asc"}
+  ]'
 ```
 
-### Get object attributes with all their possible values
-```bash
-# See all attributes and their select options/statuses in one command
-attio object attributes-with-values companies --format json
-
-# Export to CSV for documentation
-attio list attributes-with-values my_sales_list --format csv > list-schema.csv
-```
-
-### Create a complete select attribute with options
-```bash
-# 1. Create the attribute
-attio attribute create objects companies --title "Industry" --slug industry --type select
-
-# 2. Add options
-attio attribute option-create objects companies industry --title "Technology"
-attio attribute option-create objects companies industry --title "Healthcare"
-attio attribute option-create objects companies industry --title "Finance"
-
-# 3. View the attribute with all options
-attio attribute options objects companies industry --format table
-```
-
-### Create a status attribute for deal pipeline
-```bash
-# 1. Create the status attribute
-attio attribute create objects deals --title "Deal Stage" --slug deal_stage --type status
-
-# 2. Add statuses
-attio attribute status-create objects deals deal_stage --title "Qualified"
-attio attribute status-create objects deals deal_stage --title "In Progress"
-attio attribute status-create objects deals deal_stage --title "Closed Won" --celebration
-
-# 3. View all statuses
-attio attribute statuses objects deals deal_stage --format table
-```
-
-### Manage list attributes
-```bash
-# Create a custom attribute for a list
-attio attribute create lists my_projects --title "Priority" --slug priority --type select
-
-# Add priority options
-attio attribute option-create lists my_projects priority --title "High"
-attio attribute option-create lists my_projects priority --title "Medium"
-attio attribute option-create lists my_projects priority --title "Low"
-
-# View list schema with all values
-attio list attributes-with-values my_projects --format json
-```
-
-### Use custom API key
-```bash
-attio --api-key sk_test_xxx workspace members list
-```
+---
 
 ## Development
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup and guidelines.
+### Setup
 
-## Tech Stack
+```bash
+# Clone repository
+git clone https://github.com/yourusername/attio-cli.git
+cd attio-cli
 
-- **TypeScript**: Strict mode with no implicit any
-- **Commander.js**: CLI framework
-- **Axios**: HTTP client with retry logic
-- **Zod**: Runtime type validation
-- **Vitest**: Testing framework
-- **cli-table3**: Table formatting
-- **csv-stringify**: CSV formatting
+# Install dependencies
+npm install
+
+# Build
+npm run build
+
+# Run in development mode (with auto-reload)
+npm run dev -- workspace members list
+```
+
+### Project Structure
+
+```
+attio-cli/
+├── src/
+│   ├── api/
+│   │   ├── client.ts          # Axios HTTP client with retry logic
+│   │   ├── errors.ts          # Error handling and types
+│   │   ├── types.ts           # Zod schemas and TypeScript types
+│   │   └── endpoints/         # API endpoint classes
+│   │       ├── attributes.ts
+│   │       ├── objects.ts
+│   │       ├── records.ts
+│   │       ├── lists.ts
+│   │       ├── entries.ts
+│   │       ├── notes.ts
+│   │       ├── tasks.ts
+│   │       └── meetings.ts
+│   ├── commands/              # CLI command definitions
+│   │   ├── workspace.ts
+│   │   ├── object.ts
+│   │   ├── attribute.ts
+│   │   ├── record.ts
+│   │   ├── list.ts
+│   │   ├── entry.ts
+│   │   ├── note.ts
+│   │   ├── task.ts
+│   │   └── meeting.ts
+│   ├── formatters/            # Output formatters
+│   │   ├── json.ts
+│   │   ├── table.ts
+│   │   └── csv.ts
+│   ├── utils/                 # Utility functions
+│   │   ├── validation.ts
+│   │   └── filter-validator.ts
+│   └── cli.ts                 # CLI entry point
+├── tests/
+│   └── integration/           # Integration tests against live API
+├── dist/                      # Compiled JavaScript
+├── package.json
+├── tsconfig.json
+└── README.md
+```
+
+### Tech Stack
+
+- **[TypeScript](https://www.typescriptlang.org/)** - Strict mode with full type safety
+- **[Commander.js](https://github.com/tj/commander.js)** - CLI framework
+- **[Axios](https://axios-http.com/)** - HTTP client with interceptors
+- **[Zod](https://github.com/colinhacks/zod)** - Runtime type validation
+- **[Vitest](https://vitest.dev/)** - Fast unit and integration testing
+- **[cli-table3](https://github.com/cli-table/cli-table3)** - ASCII table rendering
+- **[csv-stringify](https://csv.js.org/stringify/)** - CSV generation
+
+### Scripts
+
+```bash
+# Development
+npm run dev              # Run CLI in development mode
+npm run build            # Compile TypeScript to JavaScript
+npm run type-check       # Type check without emitting files
+
+# Code Quality
+npm run lint             # Run ESLint
+npm run lint:fix         # Auto-fix linting issues
+npm run format           # Format code with Prettier
+npm run format:check     # Check code formatting
+
+# Testing
+npm test                 # Run unit tests
+npm run test:watch       # Run tests in watch mode
+npm run test:integration # Run integration tests (requires API key)
+```
+
+---
 
 ## Testing
 
-```bash
-# Run unit tests
-npm test
+### Unit Tests
 
-# Run integration tests (requires ATTIO_API_KEY)
+Run fast unit tests without external dependencies:
+
+```bash
+npm test
+```
+
+### Integration Tests
+
+Integration tests run against the live Attio API and require a valid API key:
+
+```bash
+# Set your API key
+export ATTIO_API_KEY="attio_sk_your_key_here"
+
+# Run all integration tests
 npm run test:integration
 
-# Run all tests
-npm test && npm run test:integration
+# Run specific test suite
+npm run test:integration tests/integration/attributes.test.ts
+
+# Run with verbose output
+npm run test:integration -- --reporter=verbose
 ```
+
+**⚠️ Warning**: Integration tests will create, modify, and delete data in your Attio workspace. Use a development/test workspace.
+
+### Test Coverage
+
+The project includes **112 integration tests** covering:
+
+- ✅ Workspace members (11 tests)
+- ✅ Objects and attributes (6 tests)
+- ✅ Attribute management (11 tests)
+- ✅ Convenience commands (9 tests)
+- ✅ Records CRUD (16 tests)
+- ✅ Lists CRUD (11 tests)
+- ✅ List entries (16 tests)
+- ✅ Notes CRUD (10 tests)
+- ✅ Tasks CRUD (11 tests)
+- ✅ Meetings read-only (7 tests)
+- ✅ API client (11 tests)
+
+### Writing Tests
+
+Integration tests follow this pattern:
+
+```typescript
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { AttioClient } from '../../src/api/client';
+import { RecordEndpoints } from '../../src/api/endpoints/records';
+
+describe('Records Integration Tests', () => {
+  let client: AttioClient;
+  let recordApi: RecordEndpoints;
+  let testRecordId: string | null = null;
+
+  beforeAll(() => {
+    if (!process.env.ATTIO_API_KEY) {
+      throw new Error('ATTIO_API_KEY not found');
+    }
+    client = new AttioClient();
+    recordApi = new RecordEndpoints(client);
+  });
+
+  afterAll(async () => {
+    // Cleanup test data
+    if (testRecordId) {
+      await recordApi.deleteRecord('people', testRecordId);
+    }
+  });
+
+  it('should create a record', async () => {
+    const record = await recordApi.createRecord('people', {
+      data: { values: { /* ... */ } }
+    });
+    expect(record).toBeDefined();
+    testRecordId = record.id.record_id;
+  });
+});
+```
+
+---
+
+## Contributing
+
+We welcome contributions! Please follow these guidelines:
+
+### Development Workflow
+
+1. **Fork** the repository
+2. **Clone** your fork: `git clone https://github.com/yourusername/attio-cli.git`
+3. **Create a branch**: `git checkout -b feature/my-feature`
+4. **Make changes** and add tests
+5. **Run tests**: `npm test && npm run test:integration`
+6. **Lint and format**: `npm run lint:fix && npm run format`
+7. **Commit** with a clear message: `git commit -m "Add feature: ..."`
+8. **Push**: `git push origin feature/my-feature`
+9. **Create a Pull Request**
+
+### Code Style
+
+- Use TypeScript strict mode
+- Follow existing code patterns
+- Add JSDoc comments for public APIs
+- Use meaningful variable and function names
+- Keep functions small and focused
+
+### Commit Messages
+
+Follow conventional commits:
+
+```
+feat: Add support for custom fields
+fix: Handle rate limit errors correctly
+docs: Update README with new examples
+test: Add integration tests for lists
+refactor: Simplify filter validation logic
+```
+
+### Testing Requirements
+
+- All new features must include tests
+- Integration tests for API endpoints
+- Maintain >90% test coverage
+- Tests must clean up after themselves
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+**API Key Not Found**
+
+```
+Error: ATTIO_API_KEY not found in environment
+```
+
+Solution: Set your API key in `.env` or export it:
+```bash
+export ATTIO_API_KEY="attio_sk_your_key_here"
+```
+
+**Rate Limit Errors**
+
+```
+Error: Rate limit exceeded
+```
+
+Solution: The CLI automatically retries with exponential backoff. Reduce request frequency or upgrade your Attio plan.
+
+**Invalid Filter Syntax**
+
+```
+Error: Invalid filter structure
+```
+
+Solution: Check filter JSON syntax and use valid operators:
+```bash
+attio record list people --filter '{"name":{"first_name":{"$eq":"John"}}}'
+```
+
+**404 Errors**
+
+```
+Error: Could not find endpoint
+```
+
+Solution: Verify the object/record/list slug exists. Some operations (like status attributes) only work on lists/custom objects.
+
+---
+
+## API Limitations
+
+### Known Restrictions
+
+| Operation | Limitation | Workaround |
+|-----------|-----------|------------|
+| Delete attributes | ❌ Not supported | Archive by updating description |
+| Status attributes | ⚠️ Lists/custom objects only | Use select attributes for built-in objects |
+| Delete options/statuses | ⚠️ May not be reliable | Use archive commands instead |
+
+For more details, see [ATTRIBUTE_MANAGEMENT.md](./ATTRIBUTE_MANAGEMENT.md).
+
+---
+
+## Roadmap
+
+- [ ] Webhook management
+- [ ] Bulk import/export operations
+- [ ] Interactive mode with prompts
+- [ ] Workspace configuration commands
+- [ ] Custom field type support
+- [ ] Advanced query builder
+- [ ] Performance optimizations
+
+---
 
 ## License
 
-MIT
+MIT License - see [LICENSE](LICENSE) file for details.
+
+---
 
 ## Support
 
-For issues and questions, please open an issue on GitHub or contact support@attio.com.
+- **Issues**: [GitHub Issues](https://github.com/yourusername/attio-cli/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/yourusername/attio-cli/discussions)
+- **Attio Support**: support@attio.com
 
-## Related
+---
+
+## Related Resources
 
 - [Attio API Documentation](https://developers.attio.com/)
 - [Attio Help Center](https://help.attio.com/)
+- [TypeScript Documentation](https://www.typescriptlang.org/docs/)
+- [Commander.js Documentation](https://github.com/tj/commander.js)
+
+---
+
+**Built with ❤️ by the community**
