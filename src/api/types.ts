@@ -17,7 +17,7 @@ export function asSlug(value: string): Slug {
 export const TimestampSchema = z.string().datetime();
 
 export const CreatedBySchema = z.object({
-  type: z.enum(['workspace-member', 'system', 'api']),
+  type: z.enum(['workspace-member', 'system', 'api', 'api-token']),
   workspace_member_id: z.string().optional(),
   api_actor_id: z.string().optional(),
 });
@@ -204,9 +204,10 @@ export const NoteIdSchema = z.object({
 export const NoteSchema = z.object({
   id: NoteIdSchema,
   title: z.string(),
-  content: z.string(),
-  content_plaintext: z.string(),
-  format: z.enum(['plaintext', 'markdown', 'html']),
+  content: z.string().optional(),
+  content_plaintext: z.string().optional(),
+  content_markdown: z.string().optional(),
+  format: z.enum(['plaintext', 'markdown', 'html']).optional(),
   parent_object: z.string(),
   parent_record_id: z.string(),
   created_at: TimestampSchema,
