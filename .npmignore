@@ -1,0 +1,30 @@
+# Source files
+src/
+tests/
+docs/
+
+# Config files
+.env
+.env.example
+tsconfig.json
+vitest.config.ts
+vitest.integration.config.ts
+.eslintrc.json
+.prettierrc.json
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+
+# CI/CD
+.github
+
+# Misc
+*.log
+node_modules/
+coverage/
+.DS_Store

@@ -28,6 +28,19 @@
   ],
   "author": "",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/attio-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/attio-cli/issues"
+  },
+  "homepage": "https://github.com/yourusername/attio-cli#readme",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "dependencies": {
     "axios": "^1.6.7",
     "cli-table3": "^0.6.3",
