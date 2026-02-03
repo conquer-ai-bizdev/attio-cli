@@ -3,6 +3,7 @@ import { AttioClient } from '../api/client';
 import { ObjectEndpoints } from '../api/endpoints/objects';
 import { formatJson } from '../formatters/json';
 import { formatGenericTable } from '../formatters/table';
+import { formatCsv } from '../formatters/csv';
 
 export function createObjectCommand(): Command {
   const object = new Command('object').description(
@@ -13,7 +14,7 @@ export function createObjectCommand(): Command {
   object
     .command('list')
     .description('List all objects in the workspace')
-    .option('--format <format>', 'Output format (json|table)', 'json')
+    .option('--format <format>', 'Output format (json|table|csv)', 'json')
     .action(async (options) => {
       try {
         const client = new AttioClient(options.apiKey);
@@ -30,6 +31,8 @@ export function createObjectCommand(): Command {
             workspace_level: obj.is_workspace_level,
           }));
           console.log(formatGenericTable(tableData));
+        } else if (options.format === 'csv') {
+          console.log(formatCsv(objects));
         } else {
           console.log(formatJson(objects));
         }
@@ -47,7 +50,7 @@ export function createObjectCommand(): Command {
     .command('get')
     .description('Get a specific object')
     .argument('<slug>', 'Object slug (e.g., people, companies, deals)')
-    .option('--format <format>', 'Output format (json|table)', 'json')
+    .option('--format <format>', 'Output format (json|table|csv)', 'json')
     .action(async (slug: string, options) => {
       try {
         const client = new AttioClient(options.apiKey);
@@ -66,6 +69,8 @@ export function createObjectCommand(): Command {
             },
           ];
           console.log(formatGenericTable(tableData));
+        } else if (options.format === 'csv') {
+          console.log(formatCsv(obj));
         } else {
           console.log(formatJson(obj));
         }
@@ -83,7 +88,7 @@ export function createObjectCommand(): Command {
     .command('attributes')
     .description('List attributes for an object')
     .argument('<object-slug>', 'Object slug (e.g., people, companies)')
-    .option('--format <format>', 'Output format (json|table)', 'json')
+    .option('--format <format>', 'Output format (json|table|csv)', 'json')
     .action(async (objectSlug: string, options) => {
       try {
         const client = new AttioClient(options.apiKey);
@@ -101,6 +106,8 @@ export function createObjectCommand(): Command {
             system: attr.is_system_attribute,
           }));
           console.log(formatGenericTable(tableData));
+        } else if (options.format === 'csv') {
+          console.log(formatCsv(attributes));
         } else {
           console.log(formatJson(attributes));
         }

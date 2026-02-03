@@ -16,6 +16,7 @@ program.option(
   '--api-key <key>',
   'Attio API key (overrides ATTIO_API_KEY env var)'
 );
+program.option('--verbose', 'Show detailed error messages');
 
 // Add commands
 program.addCommand(createWorkspaceCommand());

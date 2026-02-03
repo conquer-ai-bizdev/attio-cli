@@ -3,6 +3,7 @@ import { AttioClient } from '../api/client';
 import { WorkspaceEndpoints } from '../api/endpoints/workspace';
 import { formatJson } from '../formatters/json';
 import { formatWorkspaceMembersTable } from '../formatters/table';
+import { formatCsv } from '../formatters/csv';
 
 export function createWorkspaceCommand(): Command {
   const workspace = new Command('workspace')
@@ -19,7 +20,7 @@ export function createWorkspaceCommand(): Command {
     .option('--offset <number>', 'Number of members to skip', parseInt)
     .option(
       '--format <format>',
-      'Output format (json|table)',
+      'Output format (json|table|csv)',
       'json'
     )
     .action(async (options) => {
@@ -34,6 +35,8 @@ export function createWorkspaceCommand(): Command {
 
         if (options.format === 'table') {
           console.log(formatWorkspaceMembersTable(workspaceMembers));
+        } else if (options.format === 'csv') {
+          console.log(formatCsv(workspaceMembers));
         } else {
           console.log(formatJson(workspaceMembers));
         }
@@ -52,7 +55,7 @@ export function createWorkspaceCommand(): Command {
     .argument('<member-id>', 'Workspace member ID')
     .option(
       '--format <format>',
-      'Output format (json|table)',
+      'Output format (json|table|csv)',
       'json'
     )
     .action(async (memberId: string, options) => {
