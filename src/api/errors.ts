@@ -73,7 +73,7 @@ export function parseApiError(
   retryAfter?: number
 ): ApiError {
   const errorData = data as ApiErrorResponse;
-  const message =
+  let message =
     errorData?.error?.message || errorData?.message || 'Unknown error';
   const code = errorData?.error?.code || 'unknown_error';
   const type = errorData?.error?.type || 'api_error';
@@ -95,7 +95,31 @@ export function parseApiError(
   }
 
   if (statusCode === 400 && errorData?.error?.errors) {
+    // Enhanced error message for validation errors
+    const fieldErrors = errorData.error.errors
+      .map((e) => `${e.field}: ${e.message}`)
+      .join(', ');
+    message = `${message} - ${fieldErrors}`;
     return new ValidationError(errorData.error.errors, message);
+  }
+
+  // Add helpful hints for common filter/attribute errors
+  if (statusCode === 400) {
+    const lowerMessage = message.toLowerCase();
+    if (
+      lowerMessage.includes('filter') ||
+      lowerMessage.includes('attribute') ||
+      lowerMessage.includes('operator')
+    ) {
+      message += '\n\nTip: Check attribute slugs and valid operators for your object.';
+      message +=
+        '\nUse: attio object attributes <object> --format table to see available attributes.';
+    }
+
+    if (lowerMessage.includes('unknown attribute')) {
+      message +=
+        '\n\nCommon operators: $eq, $contains, $starts_with, $ends_with';
+    }
   }
 
   return new ApiError(statusCode, code, type, message);

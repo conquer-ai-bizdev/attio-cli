@@ -162,7 +162,7 @@ export const ListSchema = z.object({
   id: ListIdSchema,
   api_slug: z.string(),
   name: z.string(),
-  parent_object: z.string(),
+  parent_object: z.union([z.string(), z.array(z.string())]), // Can be string or array
   created_at: TimestampSchema,
   created_by_actor: CreatedBySchema,
   entry_count: z.number().optional(),

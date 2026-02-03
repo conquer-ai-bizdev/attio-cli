@@ -4,6 +4,7 @@ import { RecordEndpoints } from '../api/endpoints/records';
 import { formatJson } from '../formatters/json';
 import { formatGenericTable } from '../formatters/table';
 import { formatCsv } from '../formatters/csv';
+import { validateFilterStructure } from '../utils/filter-validator';
 
 export function createRecordCommand(): Command {
   const record = new Command('record').description(
@@ -17,15 +18,59 @@ export function createRecordCommand(): Command {
     .argument('<object>', 'Object slug (e.g., people, companies, deals)')
     .option('--limit <number>', 'Maximum records to return', parseInt)
     .option('--offset <number>', 'Number of records to skip', parseInt)
+    .option('--filter <json>', 'Filter query as JSON (e.g., \'{"email_addresses":{"email_address":{"$contains":"@example.com"}}}\')')
+    .option('--sort <json>', 'Sort specification as JSON (e.g., \'[{"attribute":"name","direction":"asc"}]\')')
     .option('--format <format>', 'Output format (json|table|csv)', 'json')
     .action(async (objectSlug: string, options) => {
       try {
         const client = new AttioClient(options.apiKey);
         const recordApi = new RecordEndpoints(client);
 
+        // Parse filter if provided
+        let filter;
+        if (options.filter) {
+          try {
+            filter = JSON.parse(options.filter);
+
+            // Validate filter structure
+            const validation = validateFilterStructure(filter);
+            if (!validation.valid) {
+              console.error('Error: Invalid filter structure');
+              validation.errors.forEach((err) => console.error(`  - ${err}`));
+              console.error(
+                '\nExample: --filter \'{"email_addresses":{"email_address":{"$eq":"user@example.com"}}}\''
+              );
+              process.exit(1);
+            }
+          } catch (error) {
+            console.error('Error: Invalid JSON in --filter option');
+            console.error(
+              'Example: --filter \'{"email_addresses":{"email_address":{"$eq":"user@example.com"}}}\''
+            );
+            process.exit(1);
+          }
+        }
+
+        // Parse sort if provided
+        let sorts;
+        if (options.sort) {
+          try {
+            sorts = JSON.parse(options.sort);
+            if (!Array.isArray(sorts)) {
+              throw new Error('Sort must be an array');
+            }
+          } catch (error) {
+            console.error('Error: Invalid JSON in --sort option');
+            console.error('Example: --sort \'[{"attribute":"name","direction":"asc"}]\'');
+            process.exit(1);
+          }
+        }
+
         const records = await recordApi.listRecords(objectSlug, {
           limit: options.limit,
           offset: options.offset,
+          filter: filter,
+          sorts: sorts,
         });
 
         if (options.format === 'table') {

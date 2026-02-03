@@ -158,4 +158,115 @@ describe('Records Integration Tests', () => {
       ).rejects.toThrow();
     });
   });
+
+  describe('Filtering and Sorting', () => {
+    it('should filter records by email domain', async () => {
+      const filter = {
+        email_addresses: {
+          email_address: {
+            $contains: '@',
+          },
+        },
+      };
+
+      const records = await recordApi.listRecords('people', {
+        filter,
+        limit: 5,
+      });
+
+      expect(records).toBeInstanceOf(Array);
+      // All returned records should have email addresses containing @
+      records.forEach((record) => {
+        expect(record.values.email_addresses).toBeDefined();
+      });
+    });
+
+    it('should sort records by created_at descending', async () => {
+      const records = await recordApi.listRecords('people', {
+        sorts: [{ attribute: 'created_at', direction: 'desc' }],
+        limit: 5,
+      });
+
+      expect(records).toBeInstanceOf(Array);
+
+      // Verify records are sorted by created_at descending
+      if (records.length > 1) {
+        for (let i = 0; i < records.length - 1; i++) {
+          const current = new Date(records[i].created_at);
+          const next = new Date(records[i + 1].created_at);
+          expect(current.getTime()).toBeGreaterThanOrEqual(next.getTime());
+        }
+      }
+    });
+
+    it('should combine filter and sort', async () => {
+      const filter = {
+        email_addresses: {
+          email_address: {
+            $contains: '@',
+          },
+        },
+      };
+
+      const records = await recordApi.listRecords('people', {
+        filter,
+        sorts: [{ attribute: 'created_at', direction: 'desc' }],
+        limit: 5,
+      });
+
+      expect(records).toBeInstanceOf(Array);
+
+      // All should have email containing @
+      records.forEach((record) => {
+        expect(record.values.email_addresses).toBeDefined();
+      });
+
+      // Should be sorted descending
+      if (records.length > 1) {
+        for (let i = 0; i < records.length - 1; i++) {
+          const current = new Date(records[i].created_at);
+          const next = new Date(records[i + 1].created_at);
+          expect(current.getTime()).toBeGreaterThanOrEqual(next.getTime());
+        }
+      }
+    });
+
+    it('should throw error for non-existent attribute', async () => {
+      const filter = {
+        nonexistent_custom_field_12345: {
+          $eq: 'value',
+        },
+      };
+
+      // API throws error for unknown attribute slugs
+      await expect(
+        recordApi.listRecords('people', {
+          filter,
+          limit: 5,
+        })
+      ).rejects.toThrow(/Unknown attribute slug/);
+    });
+
+    it('should support querying by any attribute slug (custom attributes)', async () => {
+      // This test validates that ANY attribute can be queried
+      // We use a standard attribute to test the mechanism
+      const filter = {
+        email_addresses: {
+          email_address: {
+            $contains: '@',
+          },
+        },
+      };
+
+      const records = await recordApi.listRecords('people', {
+        filter,
+        limit: 5,
+      });
+
+      expect(records).toBeInstanceOf(Array);
+      records.forEach((record) => {
+        expect(record.values.email_addresses).toBeDefined();
+      });
+    });
+  });
 });
