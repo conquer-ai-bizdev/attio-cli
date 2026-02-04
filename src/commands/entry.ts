@@ -5,6 +5,7 @@ import { formatJson } from '../formatters/json';
 import { formatGenericTable } from '../formatters/table';
 import { formatCsv } from '../formatters/csv';
 import { validateFilterStructure } from '../utils/filter-validator';
+import { compactRecordValues } from '../utils/compact-formatter';
 
 export function createEntryCommand(): Command {
   const entry = new Command('entry').description('Manage list entries');
@@ -24,6 +25,7 @@ export function createEntryCommand(): Command {
       'Sort specification as JSON (e.g., \'[{"attribute":"created_at","direction":"desc"}]\')'
     )
     .option('--format <format>', 'Output format (json|table|csv)', 'json')
+    .option('--verbose', 'Show full API response with metadata')
     .action(async (listSlug: string, options) => {
       try {
         const client = new AttioClient(options.apiKey);
@@ -76,8 +78,21 @@ export function createEntryCommand(): Command {
           sorts: sorts,
         });
 
+        // Apply compact formatting unless verbose mode is enabled
+        const displayEntries = options.verbose
+          ? entries
+          : entries.map((entry) => ({
+              ...entry,
+              attribute_values: entry.attribute_values
+                ? compactRecordValues(entry.attribute_values, {
+                    verbose: false,
+                    includeTestAttributes: false,
+                  })
+                : entry.attribute_values,
+            }));
+
         if (options.format === 'table') {
-          const tableData = entries.map((e) => ({
+          const tableData = displayEntries.map((e) => ({
             entry_id: e.id.entry_id,
             parent_record_id: e.parent_record_id,
             ...flattenAttributes(e.attribute_values),
@@ -85,9 +100,9 @@ export function createEntryCommand(): Command {
           }));
           console.log(formatGenericTable(tableData));
         } else if (options.format === 'csv') {
-          console.log(formatCsv(entries));
+          console.log(formatCsv(displayEntries));
         } else {
-          console.log(formatJson(entries));
+          console.log(formatJson(displayEntries));
         }
       } catch (error) {
         if (error instanceof Error) {
@@ -104,24 +119,38 @@ export function createEntryCommand(): Command {
     .argument('<list-slug>', 'List slug or ID')
     .argument('<entry-id>', 'Entry ID')
     .option('--format <format>', 'Output format (json|table|csv)', 'json')
+    .option('--verbose', 'Show full API response with metadata')
     .action(async (listSlug: string, entryId: string, options) => {
       try {
         const client = new AttioClient(options.apiKey);
         const listApi = new ListEndpoints(client);
         const entryData = await listApi.getEntry(listSlug, entryId);
 
+        // Apply compact formatting unless verbose mode is enabled
+        const displayEntry = options.verbose
+          ? entryData
+          : {
+              ...entryData,
+              attribute_values: entryData.attribute_values
+                ? compactRecordValues(entryData.attribute_values, {
+                    verbose: false,
+                    includeTestAttributes: false,
+                  })
+                : entryData.attribute_values,
+            };
+
         if (options.format === 'table') {
           const tableData = {
-            entry_id: entryData.id.entry_id,
-            parent_record_id: entryData.parent_record_id,
-            ...flattenAttributes(entryData.attribute_values),
-            created_at: new Date(entryData.created_at).toISOString(),
+            entry_id: displayEntry.id.entry_id,
+            parent_record_id: displayEntry.parent_record_id,
+            ...flattenAttributes(displayEntry.attribute_values),
+            created_at: new Date(displayEntry.created_at).toISOString(),
           };
           console.log(formatGenericTable([tableData]));
         } else if (options.format === 'csv') {
-          console.log(formatCsv(entryData));
+          console.log(formatCsv(displayEntry));
         } else {
-          console.log(formatJson(entryData));
+          console.log(formatJson(displayEntry));
         }
       } catch (error) {
         if (error instanceof Error) {
@@ -140,6 +169,7 @@ export function createEntryCommand(): Command {
     .requiredOption('--parent-object <object>', 'Parent object slug (e.g., people, companies)')
     .option('--data <json>', 'Entry attribute values as JSON (e.g., \'{"status":"active"}\')')
     .option('--format <format>', 'Output format (json|table|csv)', 'json')
+    .option('--verbose', 'Show full API response with metadata')
     .action(async (listSlug: string, options) => {
       try {
         const client = new AttioClient(options.apiKey);
@@ -165,18 +195,31 @@ export function createEntryCommand(): Command {
           },
         });
 
+        // Apply compact formatting unless verbose mode is enabled
+        const displayEntry = options.verbose
+          ? entryData
+          : {
+              ...entryData,
+              attribute_values: entryData.attribute_values
+                ? compactRecordValues(entryData.attribute_values, {
+                    verbose: false,
+                    includeTestAttributes: false,
+                  })
+                : entryData.attribute_values,
+            };
+
         if (options.format === 'table') {
           const tableData = {
-            entry_id: entryData.id.entry_id,
-            parent_record_id: entryData.parent_record_id,
-            ...flattenAttributes(entryData.attribute_values),
-            created_at: new Date(entryData.created_at).toISOString(),
+            entry_id: displayEntry.id.entry_id,
+            parent_record_id: displayEntry.parent_record_id,
+            ...flattenAttributes(displayEntry.attribute_values),
+            created_at: new Date(displayEntry.created_at).toISOString(),
           };
           console.log(formatGenericTable([tableData]));
         } else if (options.format === 'csv') {
-          console.log(formatCsv(entryData));
+          console.log(formatCsv(displayEntry));
         } else {
-          console.log(formatJson(entryData));
+          console.log(formatJson(displayEntry));
         }
       } catch (error) {
         if (error instanceof Error) {
@@ -194,6 +237,7 @@ export function createEntryCommand(): Command {
     .argument('<entry-id>', 'Entry ID')
     .requiredOption('--data <json>', 'Entry data to update as JSON')
     .option('--format <format>', 'Output format (json|table|csv)', 'json')
+    .option('--verbose', 'Show full API response with metadata')
     .action(async (listSlug: string, entryId: string, options) => {
       try {
         const client = new AttioClient(options.apiKey);
@@ -212,18 +256,31 @@ export function createEntryCommand(): Command {
           data: { entry_values: entryValues },
         });
 
+        // Apply compact formatting unless verbose mode is enabled
+        const displayEntry = options.verbose
+          ? entryData
+          : {
+              ...entryData,
+              attribute_values: entryData.attribute_values
+                ? compactRecordValues(entryData.attribute_values, {
+                    verbose: false,
+                    includeTestAttributes: false,
+                  })
+                : entryData.attribute_values,
+            };
+
         if (options.format === 'table') {
           const tableData = {
-            entry_id: entryData.id.entry_id,
-            parent_record_id: entryData.parent_record_id,
-            ...flattenAttributes(entryData.attribute_values),
-            created_at: new Date(entryData.created_at).toISOString(),
+            entry_id: displayEntry.id.entry_id,
+            parent_record_id: displayEntry.parent_record_id,
+            ...flattenAttributes(displayEntry.attribute_values),
+            created_at: new Date(displayEntry.created_at).toISOString(),
           };
           console.log(formatGenericTable([tableData]));
         } else if (options.format === 'csv') {
-          console.log(formatCsv(entryData));
+          console.log(formatCsv(displayEntry));
         } else {
-          console.log(formatJson(entryData));
+          console.log(formatJson(displayEntry));
         }
       } catch (error) {
         if (error instanceof Error) {
@@ -260,6 +317,7 @@ export function createEntryCommand(): Command {
     .argument('<list-slug>', 'List slug or ID')
     .requiredOption('--data <json>', 'Entry data as JSON (must include entry_values)')
     .option('--format <format>', 'Output format (json|table|csv)', 'json')
+    .option('--verbose', 'Show full API response with metadata')
     .action(async (listSlug: string, options) => {
       try {
         const client = new AttioClient(options.apiKey);
@@ -284,18 +342,31 @@ export function createEntryCommand(): Command {
 
         const entryData = await listApi.assertEntry(listSlug, { data });
 
+        // Apply compact formatting unless verbose mode is enabled
+        const displayEntry = options.verbose
+          ? entryData
+          : {
+              ...entryData,
+              attribute_values: entryData.attribute_values
+                ? compactRecordValues(entryData.attribute_values, {
+                    verbose: false,
+                    includeTestAttributes: false,
+                  })
+                : entryData.attribute_values,
+            };
+
         if (options.format === 'table') {
           const tableData = {
-            entry_id: entryData.id.entry_id,
-            parent_record_id: entryData.parent_record_id,
-            ...flattenAttributes(entryData.attribute_values),
-            created_at: new Date(entryData.created_at).toISOString(),
+            entry_id: displayEntry.id.entry_id,
+            parent_record_id: displayEntry.parent_record_id,
+            ...flattenAttributes(displayEntry.attribute_values),
+            created_at: new Date(displayEntry.created_at).toISOString(),
           };
           console.log(formatGenericTable([tableData]));
         } else if (options.format === 'csv') {
-          console.log(formatCsv(entryData));
+          console.log(formatCsv(displayEntry));
         } else {
-          console.log(formatJson(entryData));
+          console.log(formatJson(displayEntry));
         }
       } catch (error) {
         if (error instanceof Error) {
@@ -369,13 +440,32 @@ export function createEntryCommand(): Command {
   return entry;
 }
 
+// Helper to flatten entry attribute values for display in tables
+// Note: Values should already be compacted via compactRecordValues before calling this
 function flattenAttributes(
   attrs?: Record<string, unknown>
 ): Record<string, string> {
   if (!attrs) return {};
   const flattened: Record<string, string> = {};
+
   for (const [key, value] of Object.entries(attrs)) {
-    flattened[key] = JSON.stringify(value);
+    if (value === null || value === undefined) {
+      // Null values (from empty attributes) → display as empty string
+      flattened[key] = '';
+    } else if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+      // Primitive values → convert to string
+      flattened[key] = String(value);
+    } else if (Array.isArray(value)) {
+      // Arrays → join with commas for readability
+      flattened[key] = value.map(v => String(v)).join(', ');
+    } else if (typeof value === 'object') {
+      // Objects → stringify
+      flattened[key] = JSON.stringify(value);
+    } else {
+      // Fallback
+      flattened[key] = String(value);
+    }
   }
+
   return flattened;
 }

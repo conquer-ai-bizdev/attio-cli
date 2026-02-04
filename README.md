@@ -804,6 +804,123 @@ attio workspace members list --format csv > members.csv
 
 ---
 
+## Compact Output Formatting
+
+By default, record and entry outputs use **compact formatting** for better readability. This removes API metadata and extracts essential values based on attribute types.
+
+### Default Behavior
+
+When listing or getting records/entries, the CLI automatically:
+
+1. **Removes metadata**: Hides `active_from`, `active_until`, `created_by_actor`, `attribute_type`
+2. **Filters test attributes**: Hides attributes starting with `test_`
+3. **Extracts values**: Shows only the essential data based on attribute type
+4. **Simplifies structure**: Single values are unwrapped from arrays, empty attributes show as `null`
+
+### Verbose Mode
+
+Use the `--verbose` flag to see the full API response with all metadata:
+
+```bash
+# Compact output (default)
+attio record get people rec_abc123 --format json
+
+# Full API response with metadata
+attio record get people rec_abc123 --format json --verbose
+```
+
+### Example Output Comparison
+
+**Verbose output** (with `--verbose`):
+
+```json
+{
+  "values": {
+    "name": [
+      {
+        "active_from": "2026-01-30T18:33:54.442000000Z",
+        "active_until": null,
+        "created_by_actor": {"type": "api-token", "id": "..."},
+        "first_name": "Michael",
+        "last_name": "Fröhlich",
+        "full_name": "Michael Fröhlich",
+        "attribute_type": "personal-name"
+      }
+    ],
+    "email_addresses": [
+      {
+        "active_from": "2026-01-30T18:33:54.442000000Z",
+        "active_until": null,
+        "created_by_actor": {"type": "workspace-member", "id": "..."},
+        "email_address": "m.froehlich1994@gmail.com",
+        "email_domain": "gmail.com",
+        "attribute_type": "email-address"
+      }
+    ],
+    "twitter": [
+      {
+        "active_from": "2026-01-15T14:43:24.827000000Z",
+        "active_until": null,
+        "created_by_actor": {"type": "workspace-member", "id": "..."},
+        "value": "https://x.com/froehlichmmm",
+        "attribute_type": "text"
+      }
+    ],
+    "instagram": [],
+    "test_attr_1770130545682": []
+  }
+}
+```
+
+**Compact output** (default):
+
+```json
+{
+  "values": {
+    "name": "Michael Fröhlich",
+    "email_addresses": ["m.froehlich1994@gmail.com"],
+    "twitter": "https://x.com/froehlichmmm",
+    "instagram": null
+  }
+}
+```
+
+### Attribute Type Extraction
+
+The CLI automatically extracts the essential data based on attribute type:
+
+| Attribute Type | Extraction Logic | Example |
+|---------------|------------------|---------|
+| `text`, `number`, `checkbox`, `date` | `.value` | `"John Doe"`, `42`, `true` |
+| `personal-name` | `.full_name` or constructed | `"John Doe"` |
+| `email-address` | `.email_address` | `"user@example.com"` |
+| `phone-number` | `.phone_number` | `"+1234567890"` |
+| `location` | Formatted string | `"Munich, Bavaria, DE"` |
+| `select`, `multiselect` | `.option.title` | `"CDTM"`, `["Tag1", "Tag2"]` |
+| `status` | `.status.title` | `"Active"` |
+| `record-reference` | `.target_record_id` | `"rec_abc123"` |
+| `actor-reference` | `.referenced_actor_type` | `"workspace-member"` |
+
+### Commands with Compact Formatting
+
+Compact formatting is available for these commands (add `--verbose` to disable):
+
+**Records:**
+- `attio record list <object> [--verbose]`
+- `attio record get <object> <record-id> [--verbose]`
+- `attio record create <object> --data <json> [--verbose]`
+- `attio record update <object> <record-id> --data <json> [--verbose]`
+- `attio record assert <object> --matching-attribute <slug> --data <json> [--verbose]`
+
+**Entries:**
+- `attio entry list <list-slug> [--verbose]`
+- `attio entry get <list-slug> <entry-id> [--verbose]`
+- `attio entry create <list-slug> --parent-record-id <id> --parent-object <object> --data <json> [--verbose]`
+- `attio entry update <list-slug> <entry-id> --data <json> [--verbose]`
+- `attio entry assert <list-slug> --data <json> [--verbose]`
+
+---
+
 ## Filtering & Sorting
 
 ### Filter Syntax
