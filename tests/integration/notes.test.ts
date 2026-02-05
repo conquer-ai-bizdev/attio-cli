@@ -212,4 +212,246 @@ describe('Notes Integration Tests', () => {
       ).rejects.toThrow();
     });
   });
+
+  describe('Find Notes by Title', () => {
+    let findTestNoteId1: string | null = null;
+    let findTestNoteId2: string | null = null;
+    let findTestRecordId: string | null = null;
+
+    beforeAll(async () => {
+      // Create test record
+      const timestamp = Date.now();
+      const testEmail = `test-find-notes-${timestamp}@integration-test.example.com`;
+
+      const record = await recordApi.createRecord('people', {
+        data: {
+          values: {
+            email_addresses: [{ email_address: testEmail }],
+          },
+        },
+      });
+      findTestRecordId = record.id.record_id;
+      console.log(`✓ Created test record for find notes: ${findTestRecordId}`);
+
+      // Create two notes with different titles
+      const note1 = await noteApi.createNote({
+        data: {
+          parent_object: 'people',
+          parent_record_id: findTestRecordId,
+          title: 'Executive Summary',
+          format: 'plaintext',
+          content: 'This is the executive summary.',
+        },
+      });
+      findTestNoteId1 = note1.id.note_id;
+      console.log(`✓ Created find test note 1: ${findTestNoteId1}`);
+
+      const note2 = await noteApi.createNote({
+        data: {
+          parent_object: 'people',
+          parent_record_id: findTestRecordId,
+          title: 'Deal Summary: Q4 2024',
+          format: 'plaintext',
+          content: 'This is the deal summary for Q4.',
+        },
+      });
+      findTestNoteId2 = note2.id.note_id;
+      console.log(`✓ Created find test note 2: ${findTestNoteId2}`);
+    });
+
+    afterAll(async () => {
+      // Cleanup: delete notes, then record
+      if (findTestNoteId1) {
+        await noteApi.deleteNote(findTestNoteId1).catch(() => {});
+      }
+      if (findTestNoteId2) {
+        await noteApi.deleteNote(findTestNoteId2).catch(() => {});
+      }
+      if (findTestRecordId) {
+        await recordApi.deleteRecord('people', findTestRecordId).catch(() => {});
+      }
+    });
+
+    it('should find note by exact title', async () => {
+      if (!findTestRecordId) throw new Error('No test record created');
+
+      const notes = await noteApi.findNotesByTitle('people', findTestRecordId, {
+        title: 'Executive Summary',
+      });
+
+      expect(notes).toHaveLength(1);
+      expect(notes[0].title).toBe('Executive Summary');
+    });
+
+    it('should find note by pattern (starts with)', async () => {
+      if (!findTestRecordId) throw new Error('No test record created');
+
+      const notes = await noteApi.findNotesByTitle('people', findTestRecordId, {
+        titlePattern: 'Deal Summary: *',
+      });
+
+      expect(notes).toHaveLength(1);
+      expect(notes[0].title).toBe('Deal Summary: Q4 2024');
+    });
+
+    it('should find note by pattern (contains)', async () => {
+      if (!findTestRecordId) throw new Error('No test record created');
+
+      const notes = await noteApi.findNotesByTitle('people', findTestRecordId, {
+        titlePattern: '*Summary*',
+      });
+
+      expect(notes).toHaveLength(2);
+    });
+
+    it('should return empty array when no match', async () => {
+      if (!findTestRecordId) throw new Error('No test record created');
+
+      const notes = await noteApi.findNotesByTitle('people', findTestRecordId, {
+        title: 'Non-existent Title',
+      });
+
+      expect(notes).toHaveLength(0);
+    });
+
+    it('should be case-insensitive for patterns', async () => {
+      if (!findTestRecordId) throw new Error('No test record created');
+
+      const notes = await noteApi.findNotesByTitle('people', findTestRecordId, {
+        titlePattern: 'executive*',
+      });
+
+      expect(notes).toHaveLength(1);
+      expect(notes[0].title).toBe('Executive Summary');
+    });
+  });
+
+  describe('Update Note', () => {
+    let updateTestNoteId: string | null = null;
+    let updateTestRecordId: string | null = null;
+
+    beforeAll(async () => {
+      // Create test record
+      const timestamp = Date.now();
+      const testEmail = `test-update-note-${timestamp}@integration-test.example.com`;
+
+      const record = await recordApi.createRecord('people', {
+        data: {
+          values: {
+            email_addresses: [{ email_address: testEmail }],
+          },
+        },
+      });
+      updateTestRecordId = record.id.record_id;
+      console.log(`✓ Created test record for update note: ${updateTestRecordId}`);
+    });
+
+    afterAll(async () => {
+      // Cleanup: delete note and record
+      if (updateTestNoteId) {
+        await noteApi.deleteNote(updateTestNoteId).catch(() => {});
+      }
+      if (updateTestRecordId) {
+        await recordApi.deleteRecord('people', updateTestRecordId).catch(() => {});
+      }
+    });
+
+    it('should update title only', async () => {
+      if (!updateTestRecordId) throw new Error('No test record created');
+
+      // Create a note to update
+      const note = await noteApi.createNote({
+        data: {
+          parent_object: 'people',
+          parent_record_id: updateTestRecordId,
+          title: 'Original Title',
+          format: 'plaintext',
+          content: 'Original content',
+        },
+      });
+      const originalNoteId = note.id.note_id;
+
+      const result = await noteApi.updateNote(originalNoteId, {
+        title: 'Updated Title',
+      });
+
+      expect(result.newNote.title).toBe('Updated Title');
+      expect(result.newNote.content_plaintext).toBe('Original content');
+      expect(result.oldNoteId).toBe(originalNoteId);
+      expect(result.newNote.id.note_id).not.toBe(originalNoteId);
+
+      // Track the new note for cleanup
+      updateTestNoteId = result.newNote.id.note_id;
+
+      // Verify old note was deleted
+      await expect(noteApi.getNote(originalNoteId)).rejects.toThrow();
+    });
+
+    it('should update content only', async () => {
+      if (!updateTestRecordId) throw new Error('No test record created');
+
+      // Create a note to update
+      const note = await noteApi.createNote({
+        data: {
+          parent_object: 'people',
+          parent_record_id: updateTestRecordId,
+          title: 'Content Test Title',
+          format: 'plaintext',
+          content: 'Original content here',
+        },
+      });
+      const originalNoteId = note.id.note_id;
+
+      const result = await noteApi.updateNote(originalNoteId, {
+        content: 'Updated content here',
+      });
+
+      expect(result.newNote.title).toBe('Content Test Title');
+      expect(result.newNote.content_plaintext).toBe('Updated content here');
+      expect(result.oldNoteId).toBe(originalNoteId);
+
+      // Track the new note for cleanup
+      updateTestNoteId = result.newNote.id.note_id;
+
+      // Verify old note was deleted
+      await expect(noteApi.getNote(originalNoteId)).rejects.toThrow();
+    });
+
+    it('should update both title and content', async () => {
+      if (!updateTestRecordId) throw new Error('No test record created');
+
+      // Create a note to update
+      const note = await noteApi.createNote({
+        data: {
+          parent_object: 'people',
+          parent_record_id: updateTestRecordId,
+          title: 'Both Test Title',
+          format: 'plaintext',
+          content: 'Both test content',
+        },
+      });
+      const originalNoteId = note.id.note_id;
+
+      const result = await noteApi.updateNote(originalNoteId, {
+        title: 'Updated Both Title',
+        content: 'Updated both content',
+      });
+
+      expect(result.newNote.title).toBe('Updated Both Title');
+      expect(result.newNote.content_plaintext).toBe('Updated both content');
+      expect(result.oldNoteId).toBe(originalNoteId);
+
+      // Track the new note for cleanup
+      updateTestNoteId = result.newNote.id.note_id;
+
+      // Verify old note was deleted
+      await expect(noteApi.getNote(originalNoteId)).rejects.toThrow();
+    });
+
+    it('should throw error when note not found', async () => {
+      await expect(
+        noteApi.updateNote('non-existent-note-id', { title: 'Test' })
+      ).rejects.toThrow();
+    });
+  });
 });
