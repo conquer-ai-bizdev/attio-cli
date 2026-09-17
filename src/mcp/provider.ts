@@ -15,8 +15,7 @@ export class OfficialAttioMcpProvider {
   private client: Client | undefined;
 
   constructor(
-    private readonly serverUrl =
-      process.env.ATTIO_MCP_URL || DEFAULT_MCP_URL
+    private readonly serverUrl = process.env.ATTIO_MCP_URL || DEFAULT_MCP_URL
   ) {}
 
   async listTools(
@@ -26,9 +25,7 @@ export class OfficialAttioMcpProvider {
     return client.listTools(params);
   }
 
-  async callTool(
-    params: CallToolRequest['params']
-  ): Promise<CallToolResult> {
+  async callTool(params: CallToolRequest['params']): Promise<CallToolResult> {
     const client = await this.getClient();
     return CallToolResultSchema.parse(await client.callTool(params));
   }
@@ -52,7 +49,7 @@ export class OfficialAttioMcpProvider {
         const first = describeError(firstError);
         const second = describeError(secondError);
         throw new Error(
-          `Could not connect to the official Attio MCP after refreshing authorization. First attempt: ${first}. Retry: ${second}`
+          `Could not connect to Attio after refreshing authorization. First attempt: ${first}. Retry: ${second}`
         );
       }
     }

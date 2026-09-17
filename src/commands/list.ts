@@ -3,8 +3,6 @@ import { AttioClient } from '../api/client';
 import { ListEndpoints, UpdateListData } from '../api/endpoints/lists';
 import { AttributeEndpoints } from '../api/endpoints/attributes';
 import { formatJson } from '../formatters/json';
-import { formatGenericTable } from '../formatters/table';
-import { formatCsv } from '../formatters/csv';
 
 function isValidSnakeCase(str: string): boolean {
   // Valid snake_case: lowercase letters, numbers, and underscores only
@@ -17,11 +15,10 @@ export function createListCommand(): Command {
 
   // List all lists
   list
-    .command('list-all')
+    .command('all')
     .description('List all lists in workspace')
     .option('--limit <number>', 'Maximum lists to return', parseInt)
     .option('--offset <number>', 'Number of lists to skip', parseInt)
-    .option('--format <format>', 'Output format (json|table|csv)', 'json')
     .action(async (options) => {
       try {
         const client = new AttioClient(options.apiKey);
@@ -31,20 +28,7 @@ export function createListCommand(): Command {
           offset: options.offset,
         });
 
-        if (options.format === 'table') {
-          const tableData = lists.map((l) => ({
-            slug: l.api_slug,
-            name: l.name,
-            parent_object: Array.isArray(l.parent_object)
-              ? l.parent_object.join(', ')
-              : l.parent_object,
-          }));
-          console.log(formatGenericTable(tableData));
-        } else if (options.format === 'csv') {
-          console.log(formatCsv(lists));
-        } else {
-          console.log(formatJson(lists));
-        }
+        console.log(formatJson(lists));
       } catch (error) {
         if (error instanceof Error) {
           console.error(`Error: ${error.message}`);
@@ -59,30 +43,13 @@ export function createListCommand(): Command {
     .command('get')
     .description('Get a specific list')
     .argument('<list-slug>', 'List slug or ID')
-    .option('--format <format>', 'Output format (json|table|csv)', 'json')
     .action(async (listSlug: string, options) => {
       try {
         const client = new AttioClient(options.apiKey);
         const listApi = new ListEndpoints(client);
         const listData = await listApi.getList(listSlug);
 
-        if (options.format === 'table') {
-          console.log(
-            formatGenericTable([
-              {
-                slug: listData.api_slug,
-                name: listData.name,
-                parent_object: Array.isArray(listData.parent_object)
-                  ? listData.parent_object.join(', ')
-                  : listData.parent_object,
-              },
-            ])
-          );
-        } else if (options.format === 'csv') {
-          console.log(formatCsv(listData));
-        } else {
-          console.log(formatJson(listData));
-        }
+        console.log(formatJson(listData));
       } catch (error) {
         if (error instanceof Error) {
           console.error(`Error: ${error.message}`);
@@ -95,71 +62,64 @@ export function createListCommand(): Command {
   list
     .command('create')
     .description('Create a new list')
-    .requiredOption('--api-slug <slug>', 'API slug for the list')
-    .requiredOption('--name <name>', 'Display name for the list')
-    .requiredOption('--parent-object <object>', 'Parent object slug (e.g., people, companies)')
-    .option('--workspace-access <level>', 'Access level (full-access|read-and-write|read-only)', 'full-access')
-    .option('--format <format>', 'Output format (json|table|csv)', 'json')
-    .action(async (options) => {
-      try {
-        // Validate api_slug is in snake_case format
-        if (!isValidSnakeCase(options.apiSlug)) {
-          console.error('Error: api_slug must be in snake_case format');
-          console.error('  Valid format: lowercase letters, numbers, and underscores only');
-          console.error('  Must start with a letter');
-          console.error('  Examples: my_list, test_list_1, customer_data');
-          console.error(`  Invalid: ${options.apiSlug}`);
-          process.exit(1);
-        }
+    .argument('<slug>', 'API slug in snake_case')
+    .argument('<name>', 'Display name')
+    .argument('<parent-object>', 'Parent object slug or ID')
+    .option(
+      '--access <level>',
+      'Access level (full-access|read-and-write|read-only)',
+      'full-access'
+    )
+    .action(
+      async (slug: string, name: string, parentObject: string, options) => {
+        try {
+          // Validate api_slug is in snake_case format
+          if (!isValidSnakeCase(slug)) {
+            console.error('Error: api_slug must be in snake_case format');
+            console.error(
+              '  Valid format: lowercase letters, numbers, and underscores only'
+            );
+            console.error('  Must start with a letter');
+            console.error('  Examples: my_list, test_list_1, customer_data');
+            console.error(`  Invalid: ${slug}`);
+            process.exit(1);
+          }
 
-        const client = new AttioClient(options.apiKey);
-        const listApi = new ListEndpoints(client);
+          const client = new AttioClient(options.apiKey);
+          const listApi = new ListEndpoints(client);
 
-        const data = {
-          data: {
-            api_slug: options.apiSlug,
-            name: options.name,
-            parent_object: options.parentObject,
-            workspace_access: options.workspaceAccess,
-            workspace_member_access: [],
-          },
-        };
+          const data = {
+            data: {
+              api_slug: slug,
+              name,
+              parent_object: parentObject,
+              workspace_access: options.access,
+              workspace_member_access: [],
+            },
+          };
 
-        const listData = await listApi.createList(data);
+          const listData = await listApi.createList(data);
 
-        if (options.format === 'table') {
-          console.log(
-            formatGenericTable([
-              {
-                slug: listData.api_slug,
-                name: listData.name,
-                parent_object: Array.isArray(listData.parent_object)
-                  ? listData.parent_object.join(', ')
-                  : listData.parent_object,
-              },
-            ])
-          );
-        } else if (options.format === 'csv') {
-          console.log(formatCsv(listData));
-        } else {
           console.log(formatJson(listData));
+        } catch (error) {
+          if (error instanceof Error) {
+            console.error(`Error: ${error.message}`);
+            process.exit(1);
+          }
+          throw error;
         }
-      } catch (error) {
-        if (error instanceof Error) {
-          console.error(`Error: ${error.message}`);
-          process.exit(1);
-        }
-        throw error;
       }
-    });
+    );
 
   list
     .command('update')
     .description('Update a list')
     .argument('<list-slug>', 'List slug or ID')
     .option('--name <name>', 'New display name')
-    .option('--workspace-access <level>', 'New access level (full-access|read-and-write|read-only)')
-    .option('--format <format>', 'Output format (json|table|csv)', 'json')
+    .option(
+      '--access <level>',
+      'New access level (full-access|read-and-write|read-only)'
+    )
     .action(async (listSlug: string, options) => {
       try {
         const client = new AttioClient(options.apiKey);
@@ -168,34 +128,22 @@ export function createListCommand(): Command {
         const data: UpdateListData = { data: {} };
 
         if (options.name) data.data.name = options.name;
-        if (options.workspaceAccess) {
-          data.data.workspace_access = options.workspaceAccess as 'full-access' | 'read-and-write' | 'read-only' | null;
+        if (options.access) {
+          data.data.workspace_access = options.access as
+            | 'full-access'
+            | 'read-and-write'
+            | 'read-only'
+            | null;
         }
 
         if (Object.keys(data.data).length === 0) {
-          console.error('Error: Must provide at least one field to update (--name or --workspace-access)');
+          console.error('Error: Provide --name or --access.');
           process.exit(1);
         }
 
         const listData = await listApi.updateList(listSlug, data);
 
-        if (options.format === 'table') {
-          console.log(
-            formatGenericTable([
-              {
-                slug: listData.api_slug,
-                name: listData.name,
-                parent_object: Array.isArray(listData.parent_object)
-                  ? listData.parent_object.join(', ')
-                  : listData.parent_object,
-              },
-            ])
-          );
-        } else if (options.format === 'csv') {
-          console.log(formatCsv(listData));
-        } else {
-          console.log(formatJson(listData));
-        }
+        console.log(formatJson(listData));
       } catch (error) {
         if (error instanceof Error) {
           console.error(`Error: ${error.message}`);
@@ -210,7 +158,6 @@ export function createListCommand(): Command {
     .command('attributes')
     .description('List attributes for a list')
     .argument('<list-slug>', 'List slug or ID')
-    .option('--format <format>', 'Output format (json|table|csv)', 'json')
     .action(async (listSlug: string, options) => {
       try {
         const client = new AttioClient(options.apiKey);
@@ -218,21 +165,7 @@ export function createListCommand(): Command {
 
         const attributes = await listApi.listAttributes(listSlug);
 
-        if (options.format === 'table') {
-          const tableData = attributes.map((attr) => ({
-            slug: attr.api_slug,
-            title: attr.title,
-            type: attr.type,
-            required: attr.is_required,
-            unique: attr.is_unique,
-            system: attr.is_system_attribute,
-          }));
-          console.log(formatGenericTable(tableData));
-        } else if (options.format === 'csv') {
-          console.log(formatCsv(attributes));
-        } else {
-          console.log(formatJson(attributes));
-        }
+        console.log(formatJson(attributes));
       } catch (error) {
         if (error instanceof Error) {
           console.error(`Error: ${error.message}`);
@@ -250,7 +183,6 @@ export function createListCommand(): Command {
     )
     .argument('<list-slug>', 'List slug or ID')
     .option('--show-archived', 'Include archived attributes and options')
-    .option('--format <format>', 'Output format (json|table|csv)', 'json')
     .action(async (listSlug: string, options) => {
       try {
         const client = new AttioClient(options.apiKey);
@@ -262,32 +194,7 @@ export function createListCommand(): Command {
           { show_archived: options.showArchived }
         );
 
-        if (options.format === 'table') {
-          const tableData = attributes.map((attr) => {
-            const baseData: Record<string, unknown> = {
-              slug: attr.api_slug,
-              title: attr.title,
-              type: attr.type,
-              required: attr.is_required,
-              unique: attr.is_unique,
-            };
-
-            if (attr.select_options) {
-              baseData.options = attr.select_options
-                .map((opt) => opt.title)
-                .join(', ');
-            } else if (attr.statuses) {
-              baseData.statuses = attr.statuses.map((s) => s.title).join(', ');
-            }
-
-            return baseData;
-          });
-          console.log(formatGenericTable(tableData));
-        } else if (options.format === 'csv') {
-          console.log(formatCsv(attributes));
-        } else {
-          console.log(formatJson(attributes));
-        }
+        console.log(formatJson(attributes));
       } catch (error) {
         if (error instanceof Error) {
           console.error(`Error: ${error.message}`);

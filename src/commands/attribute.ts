@@ -2,8 +2,6 @@ import { Command } from 'commander';
 import { AttioClient } from '../api/client';
 import { AttributeEndpoints } from '../api/endpoints/attributes';
 import { formatJson } from '../formatters/json';
-import { formatGenericTable } from '../formatters/table';
-import { formatCsv } from '../formatters/csv';
 
 function isValidSnakeCase(str: string): boolean {
   // Valid snake_case: lowercase letters, numbers, and underscores only
@@ -23,7 +21,6 @@ export function createAttributeCommand(): Command {
     .argument('<target>', 'Target type (objects or lists)')
     .argument('<identifier>', 'Object/list slug or ID')
     .option('--show-archived', 'Include archived attributes')
-    .option('--format <format>', 'Output format (json|table|csv)', 'json')
     .action(async (target: string, identifier: string, options) => {
       try {
         if (target !== 'objects' && target !== 'lists') {
@@ -40,22 +37,7 @@ export function createAttributeCommand(): Command {
           { show_archived: options.showArchived }
         );
 
-        if (options.format === 'table') {
-          const tableData = attributes.map((attr) => ({
-            slug: attr.api_slug,
-            title: attr.title,
-            type: attr.type,
-            required: attr.is_required,
-            unique: attr.is_unique,
-            archived: attr.is_archived,
-            system: attr.is_system_attribute,
-          }));
-          console.log(formatGenericTable(tableData));
-        } else if (options.format === 'csv') {
-          console.log(formatCsv(attributes));
-        } else {
-          console.log(formatJson(attributes));
-        }
+        console.log(formatJson(attributes));
       } catch (error) {
         if (error instanceof Error) {
           console.error(`Error: ${error.message}`);
@@ -72,9 +54,13 @@ export function createAttributeCommand(): Command {
     .argument('<target>', 'Target type (objects or lists)')
     .argument('<identifier>', 'Object/list slug or ID')
     .argument('<attribute-slug>', 'Attribute slug')
-    .option('--format <format>', 'Output format (json|table|csv)', 'json')
     .action(
-      async (target: string, identifier: string, attributeSlug: string, options) => {
+      async (
+        target: string,
+        identifier: string,
+        attributeSlug: string,
+        options
+      ) => {
         try {
           if (target !== 'objects' && target !== 'lists') {
             console.error('Error: target must be either "objects" or "lists"');
@@ -90,24 +76,7 @@ export function createAttributeCommand(): Command {
             attributeSlug
           );
 
-          if (options.format === 'table') {
-            const tableData = [
-              {
-                slug: attr.api_slug,
-                title: attr.title,
-                type: attr.type,
-                required: attr.is_required,
-                unique: attr.is_unique,
-                archived: attr.is_archived,
-                system: attr.is_system_attribute,
-              },
-            ];
-            console.log(formatGenericTable(tableData));
-          } else if (options.format === 'csv') {
-            console.log(formatCsv(attr));
-          } else {
-            console.log(formatJson(attr));
-          }
+          console.log(formatJson(attr));
         } catch (error) {
           if (error instanceof Error) {
             console.error(`Error: ${error.message}`);
@@ -126,12 +95,14 @@ export function createAttributeCommand(): Command {
     .argument('<identifier>', 'Object/list slug or ID')
     .requiredOption('--title <title>', 'Attribute title')
     .requiredOption('--slug <slug>', 'API slug (snake_case)')
-    .requiredOption('--type <type>', 'Attribute type (text, number, select, status, etc.)')
+    .requiredOption(
+      '--type <type>',
+      'Attribute type (text, number, select, status, etc.)'
+    )
     .option('--description <description>', 'Attribute description')
     .option('--required', 'Mark as required')
     .option('--unique', 'Mark as unique')
     .option('--multiselect', 'Enable multiselect (for select type)')
-    .option('--format <format>', 'Output format (json|table|csv)', 'json')
     .action(async (target: string, identifier: string, options) => {
       try {
         if (target !== 'objects' && target !== 'lists') {
@@ -141,7 +112,9 @@ export function createAttributeCommand(): Command {
 
         if (!isValidSnakeCase(options.slug)) {
           console.error('Error: slug must be in snake_case format');
-          console.error('  Valid format: lowercase letters, numbers, and underscores only');
+          console.error(
+            '  Valid format: lowercase letters, numbers, and underscores only'
+          );
           console.error('  Must start with a letter');
           console.error('  Examples: email_address, deal_status, company_size');
           console.error(`  Invalid: ${options.slug}`);
@@ -170,22 +143,7 @@ export function createAttributeCommand(): Command {
           data
         );
 
-        if (options.format === 'table') {
-          const tableData = [
-            {
-              slug: attr.api_slug,
-              title: attr.title,
-              type: attr.type,
-              required: attr.is_required,
-              unique: attr.is_unique,
-            },
-          ];
-          console.log(formatGenericTable(tableData));
-        } else if (options.format === 'csv') {
-          console.log(formatCsv(attr));
-        } else {
-          console.log(formatJson(attr));
-        }
+        console.log(formatJson(attr));
       } catch (error) {
         if (error instanceof Error) {
           console.error(`Error: ${error.message}`);
@@ -210,9 +168,13 @@ export function createAttributeCommand(): Command {
     .option('--unique <value>', 'Set unique (true|false)', (val) =>
       val === 'true' ? true : val === 'false' ? false : undefined
     )
-    .option('--format <format>', 'Output format (json|table|csv)', 'json')
     .action(
-      async (target: string, identifier: string, attributeSlug: string, options) => {
+      async (
+        target: string,
+        identifier: string,
+        attributeSlug: string,
+        options
+      ) => {
         try {
           if (target !== 'objects' && target !== 'lists') {
             console.error('Error: target must be either "objects" or "lists"');
@@ -226,8 +188,10 @@ export function createAttributeCommand(): Command {
 
           if (options.title) data.data.title = options.title;
           if (options.description) data.data.description = options.description;
-          if (options.required !== undefined) data.data.is_required = options.required;
-          if (options.unique !== undefined) data.data.is_unique = options.unique;
+          if (options.required !== undefined)
+            data.data.is_required = options.required;
+          if (options.unique !== undefined)
+            data.data.is_unique = options.unique;
 
           if (Object.keys(data.data).length === 0) {
             console.error(
@@ -243,22 +207,7 @@ export function createAttributeCommand(): Command {
             data
           );
 
-          if (options.format === 'table') {
-            const tableData = [
-              {
-                slug: attr.api_slug,
-                title: attr.title,
-                type: attr.type,
-                required: attr.is_required,
-                unique: attr.is_unique,
-              },
-            ];
-            console.log(formatGenericTable(tableData));
-          } else if (options.format === 'csv') {
-            console.log(formatCsv(attr));
-          } else {
-            console.log(formatJson(attr));
-          }
+          console.log(formatJson(attr));
         } catch (error) {
           if (error instanceof Error) {
             console.error(`Error: ${error.message}`);
@@ -272,7 +221,9 @@ export function createAttributeCommand(): Command {
   // Archive attribute (Note: Attio API does not support deleting attributes)
   attribute
     .command('archive')
-    .description('Archive an attribute (Note: attributes cannot be deleted, only archived via update)')
+    .description(
+      'Archive an attribute (Note: attributes cannot be deleted, only archived via update)'
+    )
     .argument('<target>', 'Target type (objects or lists)')
     .argument('<identifier>', 'Object/list slug or ID')
     .argument('<attribute-slug>', 'Attribute slug')
@@ -284,10 +235,16 @@ export function createAttributeCommand(): Command {
             process.exit(1);
           }
 
-          console.log('Note: The Attio API does not support deleting attributes.');
+          console.log(
+            'Note: The Attio API does not support deleting attributes.'
+          );
           console.log('Attributes can be archived by updating them.');
-          console.log(`To archive, update the attribute "${attributeSlug}" with archived status.`);
-          console.log(`Example: attio attribute update ${target} ${identifier} ${attributeSlug} --description "Archived"`);
+          console.log(
+            `To archive, update the attribute "${attributeSlug}" with archived status.`
+          );
+          console.log(
+            `Example: attio attribute update ${target} ${identifier} ${attributeSlug} --description "Archived"`
+          );
 
           process.exit(1);
         } catch (error) {
@@ -308,9 +265,13 @@ export function createAttributeCommand(): Command {
     .argument('<identifier>', 'Object/list slug or ID')
     .argument('<attribute-slug>', 'Attribute slug')
     .option('--show-archived', 'Include archived options')
-    .option('--format <format>', 'Output format (json|table|csv)', 'json')
     .action(
-      async (target: string, identifier: string, attributeSlug: string, options) => {
+      async (
+        target: string,
+        identifier: string,
+        attributeSlug: string,
+        options
+      ) => {
         try {
           if (target !== 'objects' && target !== 'lists') {
             console.error('Error: target must be either "objects" or "lists"');
@@ -327,18 +288,7 @@ export function createAttributeCommand(): Command {
             { show_archived: options.showArchived }
           );
 
-          if (options.format === 'table') {
-            const tableData = selectOptions.map((opt) => ({
-              option_id: opt.id.option_id,
-              title: opt.title,
-              archived: opt.is_archived,
-            }));
-            console.log(formatGenericTable(tableData));
-          } else if (options.format === 'csv') {
-            console.log(formatCsv(selectOptions));
-          } else {
-            console.log(formatJson(selectOptions));
-          }
+          console.log(formatJson(selectOptions));
         } catch (error) {
           if (error instanceof Error) {
             console.error(`Error: ${error.message}`);
@@ -357,9 +307,13 @@ export function createAttributeCommand(): Command {
     .argument('<identifier>', 'Object/list slug or ID')
     .argument('<attribute-slug>', 'Attribute slug')
     .requiredOption('--title <title>', 'Option title')
-    .option('--format <format>', 'Output format (json|table|csv)', 'json')
     .action(
-      async (target: string, identifier: string, attributeSlug: string, options) => {
+      async (
+        target: string,
+        identifier: string,
+        attributeSlug: string,
+        options
+      ) => {
         try {
           if (target !== 'objects' && target !== 'lists') {
             console.error('Error: target must be either "objects" or "lists"');
@@ -376,20 +330,7 @@ export function createAttributeCommand(): Command {
             { data: { title: options.title } }
           );
 
-          if (options.format === 'table') {
-            const tableData = [
-              {
-                option_id: option.id.option_id,
-                title: option.title,
-                archived: option.is_archived,
-              },
-            ];
-            console.log(formatGenericTable(tableData));
-          } else if (options.format === 'csv') {
-            console.log(formatCsv(option));
-          } else {
-            console.log(formatJson(option));
-          }
+          console.log(formatJson(option));
         } catch (error) {
           if (error instanceof Error) {
             console.error(`Error: ${error.message}`);
@@ -412,7 +353,6 @@ export function createAttributeCommand(): Command {
     .option('--archived <value>', 'Set archived (true|false)', (val) =>
       val === 'true' ? true : val === 'false' ? false : undefined
     )
-    .option('--format <format>', 'Output format (json|table|csv)', 'json')
     .action(
       async (
         target: string,
@@ -433,7 +373,8 @@ export function createAttributeCommand(): Command {
           const data: { data: Record<string, unknown> } = { data: {} };
 
           if (options.title) data.data.title = options.title;
-          if (options.archived !== undefined) data.data.is_archived = options.archived;
+          if (options.archived !== undefined)
+            data.data.is_archived = options.archived;
 
           if (Object.keys(data.data).length === 0) {
             console.error(
@@ -450,20 +391,7 @@ export function createAttributeCommand(): Command {
             data
           );
 
-          if (options.format === 'table') {
-            const tableData = [
-              {
-                option_id: option.id.option_id,
-                title: option.title,
-                archived: option.is_archived,
-              },
-            ];
-            console.log(formatGenericTable(tableData));
-          } else if (options.format === 'csv') {
-            console.log(formatCsv(option));
-          } else {
-            console.log(formatJson(option));
-          }
+          console.log(formatJson(option));
         } catch (error) {
           if (error instanceof Error) {
             console.error(`Error: ${error.message}`);
@@ -482,7 +410,6 @@ export function createAttributeCommand(): Command {
     .argument('<identifier>', 'Object/list slug or ID')
     .argument('<attribute-slug>', 'Attribute slug')
     .argument('<option-id>', 'Option ID')
-    .option('--format <format>', 'Output format (json|table|csv)', 'json')
     .action(
       async (
         target: string,
@@ -512,17 +439,7 @@ export function createAttributeCommand(): Command {
             }
           );
 
-          console.log(`Select option ${optionId} archived successfully`);
-
-          if (options.format === 'json') {
-            console.log(formatJson(archivedOption));
-          } else if (options.format === 'table') {
-            console.log(formatGenericTable([{
-              option_id: archivedOption.id.option_id,
-              title: archivedOption.title,
-              archived: archivedOption.is_archived,
-            }]));
-          }
+          console.log(formatJson(archivedOption));
         } catch (error) {
           if (error instanceof Error) {
             console.error(`Error: ${error.message}`);
@@ -541,9 +458,13 @@ export function createAttributeCommand(): Command {
     .argument('<identifier>', 'Object/list slug or ID')
     .argument('<attribute-slug>', 'Attribute slug')
     .option('--show-archived', 'Include archived statuses')
-    .option('--format <format>', 'Output format (json|table|csv)', 'json')
     .action(
-      async (target: string, identifier: string, attributeSlug: string, options) => {
+      async (
+        target: string,
+        identifier: string,
+        attributeSlug: string,
+        options
+      ) => {
         try {
           if (target !== 'objects' && target !== 'lists') {
             console.error('Error: target must be either "objects" or "lists"');
@@ -560,19 +481,7 @@ export function createAttributeCommand(): Command {
             { show_archived: options.showArchived }
           );
 
-          if (options.format === 'table') {
-            const tableData = statuses.map((status) => ({
-              status_id: status.id.status_id,
-              title: status.title,
-              celebration: status.celebration_enabled,
-              archived: status.is_archived,
-            }));
-            console.log(formatGenericTable(tableData));
-          } else if (options.format === 'csv') {
-            console.log(formatCsv(statuses));
-          } else {
-            console.log(formatJson(statuses));
-          }
+          console.log(formatJson(statuses));
         } catch (error) {
           if (error instanceof Error) {
             console.error(`Error: ${error.message}`);
@@ -592,9 +501,13 @@ export function createAttributeCommand(): Command {
     .argument('<attribute-slug>', 'Attribute slug')
     .requiredOption('--title <title>', 'Status title')
     .option('--celebration', 'Enable celebration')
-    .option('--format <format>', 'Output format (json|table|csv)', 'json')
     .action(
-      async (target: string, identifier: string, attributeSlug: string, options) => {
+      async (
+        target: string,
+        identifier: string,
+        attributeSlug: string,
+        options
+      ) => {
         try {
           if (target !== 'objects' && target !== 'lists') {
             console.error('Error: target must be either "objects" or "lists"');
@@ -618,21 +531,7 @@ export function createAttributeCommand(): Command {
             data
           );
 
-          if (options.format === 'table') {
-            const tableData = [
-              {
-                status_id: status.id.status_id,
-                title: status.title,
-                celebration: status.celebration_enabled,
-                archived: status.is_archived,
-              },
-            ];
-            console.log(formatGenericTable(tableData));
-          } else if (options.format === 'csv') {
-            console.log(formatCsv(status));
-          } else {
-            console.log(formatJson(status));
-          }
+          console.log(formatJson(status));
         } catch (error) {
           if (error instanceof Error) {
             console.error(`Error: ${error.message}`);
@@ -658,7 +557,6 @@ export function createAttributeCommand(): Command {
     .option('--archived <value>', 'Set archived (true|false)', (val) =>
       val === 'true' ? true : val === 'false' ? false : undefined
     )
-    .option('--format <format>', 'Output format (json|table|csv)', 'json')
     .action(
       async (
         target: string,
@@ -681,7 +579,8 @@ export function createAttributeCommand(): Command {
           if (options.title) data.data.title = options.title;
           if (options.celebration !== undefined)
             data.data.celebration_enabled = options.celebration;
-          if (options.archived !== undefined) data.data.is_archived = options.archived;
+          if (options.archived !== undefined)
+            data.data.is_archived = options.archived;
 
           if (Object.keys(data.data).length === 0) {
             console.error(
@@ -698,21 +597,7 @@ export function createAttributeCommand(): Command {
             data
           );
 
-          if (options.format === 'table') {
-            const tableData = [
-              {
-                status_id: status.id.status_id,
-                title: status.title,
-                celebration: status.celebration_enabled,
-                archived: status.is_archived,
-              },
-            ];
-            console.log(formatGenericTable(tableData));
-          } else if (options.format === 'csv') {
-            console.log(formatCsv(status));
-          } else {
-            console.log(formatJson(status));
-          }
+          console.log(formatJson(status));
         } catch (error) {
           if (error instanceof Error) {
             console.error(`Error: ${error.message}`);
@@ -731,7 +616,6 @@ export function createAttributeCommand(): Command {
     .argument('<identifier>', 'Object/list slug or ID')
     .argument('<attribute-slug>', 'Attribute slug')
     .argument('<status-id>', 'Status ID')
-    .option('--format <format>', 'Output format (json|table|csv)', 'json')
     .action(
       async (
         target: string,
@@ -761,17 +645,7 @@ export function createAttributeCommand(): Command {
             }
           );
 
-          console.log(`Status ${statusId} archived successfully`);
-
-          if (options.format === 'json') {
-            console.log(formatJson(archivedStatus));
-          } else if (options.format === 'table') {
-            console.log(formatGenericTable([{
-              status_id: archivedStatus.id.status_id,
-              title: archivedStatus.title,
-              archived: archivedStatus.is_archived,
-            }]));
-          }
+          console.log(formatJson(archivedStatus));
         } catch (error) {
           if (error instanceof Error) {
             console.error(`Error: ${error.message}`);

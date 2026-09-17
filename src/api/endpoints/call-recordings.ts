@@ -36,9 +36,9 @@ export class CallRecordingEndpoints {
     options: ListCallRecordingsOptions = {}
   ): Promise<CallRecordingPage> {
     const limit = options.limit ?? 50;
-    if (!Number.isInteger(limit) || limit < 1 || limit > 200) {
+    if (!Number.isInteger(limit) || limit < 1 || limit > 50) {
       throw new Error(
-        'Call recording limit must be an integer between 1 and 200.'
+        'Call recording limit must be an integer between 1 and 50.'
       );
     }
 
@@ -68,7 +68,7 @@ export class CallRecordingEndpoints {
       const page = await this.listCallRecordingsPage(meetingId, {
         ...options,
         ...(cursor ? { cursor } : {}),
-        limit: options.limit ?? 200,
+        limit: options.limit ?? 50,
       });
       pages += 1;
       observedItems += page.data.length;

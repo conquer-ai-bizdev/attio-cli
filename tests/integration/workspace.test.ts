@@ -2,7 +2,6 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { AttioClient } from '../../src/api/client';
 import { WorkspaceEndpoints } from '../../src/api/endpoints/workspace';
 import { formatJson } from '../../src/formatters/json';
-import { formatWorkspaceMembersTable } from '../../src/formatters/table';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
@@ -111,30 +110,6 @@ describe('Workspace Integration Tests', () => {
       expect(parsed.length).toBe(members.length);
     });
 
-    it('should format members as table', async () => {
-      const members = await workspaceApi.listMembers({ limit: 2 });
-      const table = formatWorkspaceMembersTable(members);
-
-      expect(table).toBeDefined();
-      expect(table).toContain('Member ID');
-      expect(table).toContain('First Name');
-      expect(table).toContain('Last Name');
-      expect(table).toContain('Email');
-
-      // Should contain data from members (check first name only, as last names may wrap)
-      members.forEach((member) => {
-        expect(table).toContain(member.first_name);
-      });
-    });
-
-    it('should format single member as table', async () => {
-      const members = await workspaceApi.listMembers({ limit: 1 });
-      const member = members[0];
-      const table = formatWorkspaceMembersTable([member]);
-
-      expect(table).toContain(member.first_name);
-      expect(table).toContain(member.email_address);
-    });
   });
 
   describe('End-to-End Workflow', () => {
@@ -147,9 +122,6 @@ describe('Workspace Integration Tests', () => {
       const json = formatJson(members);
       expect(JSON.parse(json)).toEqual(members);
 
-      // Format as table
-      const table = formatWorkspaceMembersTable(members);
-      expect(table).toContain(members[0].first_name);
     });
 
     it('should complete full get workflow', async () => {
@@ -165,8 +137,6 @@ describe('Workspace Integration Tests', () => {
       const json = formatJson(member);
       expect(JSON.parse(json).id.workspace_member_id).toBe(memberId);
 
-      const table = formatWorkspaceMembersTable([member]);
-      expect(table).toContain(member.email_address);
     });
   });
 });

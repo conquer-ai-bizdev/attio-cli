@@ -81,9 +81,7 @@ export class ApiError extends Error {
       category: this.category,
       message: this.apiMessage,
       ...(operation ? { operation } : {}),
-      ...(this.context.requestId
-        ? { request_id: this.context.requestId }
-        : {}),
+      ...(this.context.requestId ? { request_id: this.context.requestId } : {}),
       ...(this.validationErrors.length > 0
         ? { validation_errors: this.validationErrors }
         : {}),
@@ -265,7 +263,10 @@ export function parseApiError(
   }
 
   const validationErrors = extractValidationErrors(errorData);
-  if ((statusCode === 400 || statusCode === 422) && validationErrors.length > 0) {
+  if (
+    (statusCode === 400 || statusCode === 422) &&
+    validationErrors.length > 0
+  ) {
     return new ValidationError(
       validationErrors,
       message,
@@ -317,10 +318,7 @@ function extractValidationErrors(
   }));
 }
 
-function categoryForStatus(
-  statusCode: number,
-  type: string
-): ApiErrorCategory {
+function categoryForStatus(statusCode: number, type: string): ApiErrorCategory {
   if (type === 'network_error' || statusCode === 0) return 'network';
   if (statusCode === 400 || statusCode === 422) return 'input';
   if (statusCode === 401) return 'authentication';
@@ -333,7 +331,9 @@ function categoryForStatus(
 }
 
 function defaultRetryable(category: ApiErrorCategory): boolean {
-  return category === 'rate_limit' || category === 'server' || category === 'network';
+  return (
+    category === 'rate_limit' || category === 'server' || category === 'network'
+  );
 }
 
 function nextActionForCategory(
@@ -367,7 +367,9 @@ function nextActionForCategory(
 
 function formatOperation(context: ApiErrorContext): string | undefined {
   if (!context.method && !context.path) return undefined;
-  return [context.method?.toUpperCase(), context.path].filter(Boolean).join(' ');
+  return [context.method?.toUpperCase(), context.path]
+    .filter(Boolean)
+    .join(' ');
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

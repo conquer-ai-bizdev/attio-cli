@@ -53,7 +53,7 @@ export class RecordEndpoints {
     objectSlug: string,
     options: ListRecordsOptions = {}
   ): Promise<RecordPage> {
-    const limit = options.limit ?? 500;
+    const limit = options.limit ?? 50;
     const offset = options.offset ?? 0;
     validateOffsetPage(limit, offset, 'Record');
     const body: Record<string, unknown> = { limit, offset };
@@ -81,7 +81,7 @@ export class RecordEndpoints {
     objectSlug: string,
     options: Omit<ListRecordsOptions, 'offset'> = {}
   ): Promise<CompleteRecordInventory> {
-    const limit = options.limit ?? 500;
+    const limit = options.limit ?? 50;
     validateOffsetPage(limit, 0, 'Record');
     const byId = new Map<string, AttioRecord>();
     let offset = 0;
@@ -221,8 +221,8 @@ function validateOffsetPage(
   offset: number,
   label: string
 ): void {
-  if (!Number.isInteger(limit) || limit < 1) {
-    throw new Error(`${label} limit must be a positive integer.`);
+  if (!Number.isInteger(limit) || limit < 1 || limit > 50) {
+    throw new Error(`${label} limit must be an integer between 1 and 50.`);
   }
   if (!Number.isInteger(offset) || offset < 0) {
     throw new Error(`${label} offset must be a non-negative integer.`);

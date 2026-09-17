@@ -2,8 +2,7 @@ import { Command } from 'commander';
 import { AttioClient } from '../api/client';
 import { TaskEndpoints } from '../api/endpoints/tasks';
 import { formatJson } from '../formatters/json';
-import { formatGenericTable } from '../formatters/table';
-import { formatCsv } from '../formatters/csv';
+import { readInput } from '../utils/stdin';
 
 export function createTaskCommand(): Command {
   const task = new Command('task').description('Manage tasks');
@@ -16,15 +15,9 @@ export function createTaskCommand(): Command {
     .option('--offset <number>', 'Number of tasks to skip', parseInt)
     .option('--all', 'Fetch every page and return a completion receipt')
     .option('--sort <sort>', 'Sort order (created_at:asc or created_at:desc)')
-    .option('--linked-object <slug>', 'Filter by linked object (e.g., people)')
-    .option('--linked-record-id <id>', 'Filter by linked record ID')
+    .option('--link <object:id>', 'Filter by linked record')
     .option('--assignee <email-or-id>', 'Filter by assignee')
-    .option(
-      '--completed <boolean>',
-      'Filter by completion status',
-      (val) => val === 'true'
-    )
-    .option('--format <format>', 'Output format (json|table|csv)', 'json')
+    .option('--state <state>', 'Filter by state (open|done)')
     .action(async (options) => {
       try {
         if (options.all && options.offset !== undefined) {
@@ -32,37 +25,29 @@ export function createTaskCommand(): Command {
         }
         const client = new AttioClient(options.apiKey);
         const taskApi = new TaskEndpoints(client);
+        const linked = options.link ? parseLink(options.link) : undefined;
+        if (options.state && !['open', 'done'].includes(options.state)) {
+          throw new Error('--state must be open or done.');
+        }
 
         const request = {
           limit: options.limit,
           offset: options.offset,
           sort: options.sort,
-          linked_object: options.linkedObject,
-          linked_record_id: options.linkedRecordId,
+          linked_object: linked?.object,
+          linked_record_id: linked?.recordId,
           assignee: options.assignee,
-          is_completed: options.completed,
+          is_completed:
+            options.state === 'done'
+              ? true
+              : options.state === 'open'
+                ? false
+                : undefined,
         };
         const result = options.all
           ? await taskApi.listAllTasks(request)
           : await taskApi.listTasksPage(request);
-        const tasks = result.data;
-
-        if (options.format === 'table') {
-          const tableData = tasks.map((t) => ({
-            task_id: t.id.task_id,
-            content: t.content_plaintext.substring(0, 50),
-            is_completed: t.is_completed,
-            deadline_at: t.deadline_at
-              ? new Date(t.deadline_at).toISOString()
-              : 'none',
-            created_at: new Date(t.created_at).toISOString(),
-          }));
-          console.log(formatGenericTable(tableData));
-        } else if (options.format === 'csv') {
-          console.log(formatCsv(tasks));
-        } else {
-          console.log(formatJson(result));
-        }
+        console.log(formatJson(result));
       } catch (error) {
         if (error instanceof Error) {
           console.error(`Error: ${error.message}`);
@@ -77,7 +62,6 @@ export function createTaskCommand(): Command {
     .command('get')
     .description('Get a specific task')
     .argument('<task-id>', 'Task ID')
-    .option('--format <format>', 'Output format (json|table|csv)', 'json')
     .action(async (taskId: string, options) => {
       try {
         const client = new AttioClient(options.apiKey);
@@ -85,25 +69,7 @@ export function createTaskCommand(): Command {
 
         const t = await taskApi.getTask(taskId);
 
-        if (options.format === 'table') {
-          console.log(
-            formatGenericTable([
-              {
-                task_id: t.id.task_id,
-                content: t.content_plaintext,
-                is_completed: t.is_completed,
-                deadline_at: t.deadline_at
-                  ? new Date(t.deadline_at).toISOString()
-                  : 'none',
-                created_at: new Date(t.created_at).toISOString(),
-              },
-            ])
-          );
-        } else if (options.format === 'csv') {
-          console.log(formatCsv(t));
-        } else {
-          console.log(formatJson(t));
-        }
+        console.log(formatJson(t));
       } catch (error) {
         if (error instanceof Error) {
           console.error(`Error: ${error.message}`);
@@ -117,47 +83,41 @@ export function createTaskCommand(): Command {
   task
     .command('create')
     .description('Create a new task')
-    .requiredOption('--content <content>', 'Task content (max 2000 characters)')
-    .option('--deadline <date>', 'Deadline (ISO 8601 timestamp)')
-    .option('--completed', 'Mark as completed', false)
-    .option('--linked-object <slug>', 'Object of the linked record')
-    .option('--linked-record-id <id>', 'Link to a record by ID')
-    .option('--assignee-id <id>', 'Assign to a workspace member by ID')
-    .option('--output <format>', 'Output format (json|table|csv)', 'json')
-    .action(async (options) => {
+    .argument('[content]', 'Task text; defaults to stdin')
+    .option('--due <date>', 'Deadline as an ISO 8601 timestamp')
+    .option('--done', 'Create as completed')
+    .option('--link <object:id>', 'Linked record as object:record-id')
+    .option('--assignee <id>', 'Workspace member ID')
+    .action(async (content: string | undefined, options) => {
       try {
-        if (Boolean(options.linkedObject) !== Boolean(options.linkedRecordId)) {
-          throw new Error(
-            '--linked-object and --linked-record-id must be provided together.'
-          );
-        }
         const client = new AttioClient(options.apiKey);
         const taskApi = new TaskEndpoints(client);
 
-        const linked_records = options.linkedRecordId
+        const linked = options.link ? parseLink(options.link) : undefined;
+        const linked_records = linked
           ? [
               {
-                target_object: options.linkedObject,
-                target_record_id: options.linkedRecordId,
+                target_object: linked.object,
+                target_record_id: linked.recordId,
               },
             ]
           : [];
 
-        const assignees = options.assigneeId
+        const assignees = options.assignee
           ? [
               {
                 referenced_actor_type: 'workspace-member' as const,
-                referenced_actor_id: options.assigneeId,
+                referenced_actor_id: options.assignee,
               },
             ]
           : [];
 
         const data = {
           data: {
-            content: options.content,
+            content: await readInput(content, 'Task text'),
             format: 'plaintext' as const,
-            deadline_at: options.deadline || null,
-            is_completed: options.completed,
+            deadline_at: options.due || null,
+            is_completed: Boolean(options.done),
             linked_records,
             assignees,
           },
@@ -165,25 +125,7 @@ export function createTaskCommand(): Command {
 
         const t = await taskApi.createTask(data);
 
-        if (options.output === 'table') {
-          console.log(
-            formatGenericTable([
-              {
-                task_id: t.id.task_id,
-                content: t.content_plaintext,
-                is_completed: t.is_completed,
-                deadline_at: t.deadline_at
-                  ? new Date(t.deadline_at).toISOString()
-                  : 'none',
-                created_at: new Date(t.created_at).toISOString(),
-              },
-            ])
-          );
-        } else if (options.output === 'csv') {
-          console.log(formatCsv(t));
-        } else {
-          console.log(formatJson(t));
-        }
+        console.log(formatJson(t));
       } catch (error) {
         if (error instanceof Error) {
           console.error(`Error: ${error.message}`);
@@ -198,15 +140,17 @@ export function createTaskCommand(): Command {
     .command('update')
     .description('Update an existing task')
     .argument('<task-id>', 'Task ID')
-    .option('--deadline <date>', 'Updated deadline (ISO 8601 timestamp)')
-    .option(
-      '--completed <boolean>',
-      'Completion status',
-      (val) => val === 'true'
-    )
-    .option('--output <format>', 'Output format (json|table|csv)', 'json')
+    .option('--due <date>', 'New deadline as an ISO 8601 timestamp')
+    .option('--done', 'Mark completed')
+    .option('--open', 'Mark incomplete')
     .action(async (taskId: string, options) => {
       try {
+        if (options.done && options.open) {
+          throw new Error('Use either --done or --open, not both.');
+        }
+        if (!options.due && !options.done && !options.open) {
+          throw new Error('Provide --due, --done, or --open.');
+        }
         const client = new AttioClient(options.apiKey);
         const taskApi = new TaskEndpoints(client);
 
@@ -216,31 +160,13 @@ export function createTaskCommand(): Command {
           data: {},
         };
 
-        if (options.deadline) data.data.deadline_at = options.deadline;
-        if (options.completed !== undefined)
-          data.data.is_completed = options.completed;
+        if (options.due) data.data.deadline_at = options.due;
+        if (options.done) data.data.is_completed = true;
+        if (options.open) data.data.is_completed = false;
 
         const t = await taskApi.updateTask(taskId, data);
 
-        if (options.output === 'table') {
-          console.log(
-            formatGenericTable([
-              {
-                task_id: t.id.task_id,
-                content: t.content_plaintext,
-                is_completed: t.is_completed,
-                deadline_at: t.deadline_at
-                  ? new Date(t.deadline_at).toISOString()
-                  : 'none',
-                created_at: new Date(t.created_at).toISOString(),
-              },
-            ])
-          );
-        } else if (options.output === 'csv') {
-          console.log(formatCsv(t));
-        } else {
-          console.log(formatJson(t));
-        }
+        console.log(formatJson(t));
       } catch (error) {
         if (error instanceof Error) {
           console.error(`Error: ${error.message}`);
@@ -272,4 +198,15 @@ export function createTaskCommand(): Command {
     });
 
   return task;
+}
+
+function parseLink(value: string): { object: string; recordId: string } {
+  const separator = value.indexOf(':');
+  if (separator <= 0 || separator === value.length - 1) {
+    throw new Error('--link must be object:record-id.');
+  }
+  return {
+    object: value.slice(0, separator),
+    recordId: value.slice(separator + 1),
+  };
 }

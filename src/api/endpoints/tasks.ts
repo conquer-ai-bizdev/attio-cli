@@ -84,7 +84,7 @@ export class TaskEndpoints {
 
   async listTasksPage(options: ListTasksOptions = {}): Promise<TaskPage> {
     validateTaskOptions(options);
-    const limit = options.limit ?? 500;
+    const limit = options.limit ?? 10;
     const offset = options.offset ?? 0;
     const params: Record<string, unknown> = { limit, offset };
     if (options.sort) params.sort = options.sort;
@@ -112,7 +112,7 @@ export class TaskEndpoints {
   async listAllTasks(
     options: Omit<ListTasksOptions, 'offset'> = {}
   ): Promise<CompleteTaskInventory> {
-    const limit = options.limit ?? 500;
+    const limit = options.limit ?? 10;
     validateTaskOptions({ ...options, limit });
     const byId = new Map<string, Task>();
     let offset = 0;
@@ -165,10 +165,10 @@ export class TaskEndpoints {
 }
 
 function validateTaskOptions(options: ListTasksOptions): void {
-  const limit = options.limit ?? 500;
+  const limit = options.limit ?? 10;
   const offset = options.offset ?? 0;
-  if (!Number.isInteger(limit) || limit < 1) {
-    throw new Error('Task limit must be a positive integer.');
+  if (!Number.isInteger(limit) || limit < 1 || limit > 10) {
+    throw new Error('Task limit must be an integer between 1 and 10.');
   }
   if (!Number.isInteger(offset) || offset < 0) {
     throw new Error('Task offset must be a non-negative integer.');

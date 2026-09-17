@@ -7,10 +7,7 @@ import {
   FileStorageProvider,
   ListFilesOptions,
 } from '../api/endpoints/files';
-import { FileEntry } from '../api/types';
 import { formatJson } from '../formatters/json';
-import { formatGenericTable } from '../formatters/table';
-import { formatCsv } from '../formatters/csv';
 
 export function createFileCommand(): Command {
   const file = new Command('file').description(
@@ -26,7 +23,6 @@ export function createFileCommand(): Command {
     .option('--limit <number>', 'Page size, maximum 200', parseInt)
     .option('--cursor <cursor>', 'Fetch one page from this cursor')
     .option('--all', 'Follow cursors until Attio returns no next cursor')
-    .option('--format <format>', 'Output format (json|table|csv)', 'json')
     .action(async (objectSlug: string, recordId: string, options) => {
       try {
         if (options.all && options.cursor) {
@@ -44,7 +40,7 @@ export function createFileCommand(): Command {
         const result = options.all
           ? await api.listAllFiles(objectSlug, recordId, request)
           : await api.listFilesPage(objectSlug, recordId, request);
-        printFileResult(result.data, result, options.format);
+        printFileResult(result);
       } catch (error) {
         fail(error);
       }
@@ -53,13 +49,12 @@ export function createFileCommand(): Command {
   file
     .command('get')
     .argument('<file-id>', 'File entry ID')
-    .option('--format <format>', 'Output format (json|table|csv)', 'json')
     .action(async (fileId: string, options) => {
       try {
         const result = await new FileEndpoints(
           new AttioClient(options.apiKey)
         ).getFile(fileId);
-        printFileResult([result], result, options.format);
+        printFileResult(result);
       } catch (error) {
         fail(error);
       }
@@ -71,14 +66,13 @@ export function createFileCommand(): Command {
     .argument('<record-id>', 'Record ID')
     .argument('<path>', 'Local file path')
     .option('--parent-folder-id <id>', 'Upload inside this folder')
-    .option('--format <format>', 'Output format (json|table|csv)', 'json')
     .action(
       async (objectSlug: string, recordId: string, path: string, options) => {
         try {
           const result = await new FileEndpoints(
             new AttioClient(options.apiKey)
           ).uploadFile(objectSlug, recordId, path, options.parentFolderId);
-          printFileResult([result], result, options.format);
+          printFileResult(result);
         } catch (error) {
           fail(error);
         }
@@ -116,14 +110,13 @@ export function createFileCommand(): Command {
     .argument('<record-id>', 'Record ID')
     .argument('<name>', 'Folder name')
     .option('--parent-folder-id <id>', 'Create inside this folder')
-    .option('--format <format>', 'Output format (json|table|csv)', 'json')
     .action(
       async (objectSlug: string, recordId: string, name: string, options) => {
         try {
           const result = await new FileEndpoints(
             new AttioClient(options.apiKey)
           ).createFolder(objectSlug, recordId, name, options.parentFolderId);
-          printFileResult([result], result, options.format);
+          printFileResult(result);
         } catch (error) {
           fail(error);
         }
@@ -147,30 +140,8 @@ export function createFileCommand(): Command {
   return file;
 }
 
-function printFileResult(
-  entries: FileEntry[],
-  raw: unknown,
-  format: string
-): void {
-  if (format === 'table') {
-    console.log(
-      formatGenericTable(
-        entries.map((entry) => ({
-          file_id: entry.id.file_id,
-          file_type: entry.file_type,
-          name: 'name' in entry ? entry.name : '',
-          storage_provider: entry.storage_provider,
-          object: entry.object_slug,
-          record_id: entry.record_id,
-          created_at: entry.created_at,
-        }))
-      )
-    );
-  } else if (format === 'csv') {
-    console.log(formatCsv(entries));
-  } else {
-    console.log(formatJson(raw));
-  }
+function printFileResult(result: unknown): void {
+  console.log(formatJson(result));
 }
 
 async function exists(path: string): Promise<boolean> {

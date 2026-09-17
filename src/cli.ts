@@ -14,13 +14,13 @@ import { createEmailCommand } from './commands/email';
 import { createCallRecordingCommand } from './commands/call-recording';
 import { createFileCommand } from './commands/file';
 import { createCommentCommand } from './commands/comment';
-import { createMcpCommand } from './commands/mcp';
+import { createReportCommand } from './commands/report';
 
 const program = new Command();
 
 program
   .name('attio')
-  .description('JSON-first Attio CLI with REST commands and official MCP access')
+  .description('Work with Attio from the command line')
   .version('0.1.0');
 
 // Global options
@@ -44,7 +44,20 @@ program.addCommand(createEmailCommand());
 program.addCommand(createCallRecordingCommand());
 program.addCommand(createFileCommand());
 program.addCommand(createCommentCommand());
-program.addCommand(createMcpCommand());
+program.addCommand(createReportCommand());
+
+program.addHelpText(
+  'afterAll',
+  `
+Write input:
+  Pass JSON or text as the final positional argument, or omit it to read stdin.
+  A literal - also means stdin. Successful output is compact JSON for jq.
+
+Example:
+  attio record update companies <record-id> <<'EOF'
+  {"description":"Updated"}
+  EOF`
+);
 
 program.parseAsync().catch((error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);

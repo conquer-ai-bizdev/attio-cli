@@ -2,11 +2,96 @@ import { Command } from 'commander';
 import { AttioClient } from '../api/client';
 import { NoteEndpoints } from '../api/endpoints/notes';
 import { formatJson } from '../formatters/json';
-import { formatGenericTable } from '../formatters/table';
-import { formatCsv } from '../formatters/csv';
+import { callAttio } from '../api/connected-service';
+import { attioExclusiveLowerBound } from '../utils/time-window';
+import { requirePageLimit } from '../utils/page-limit';
+import { readInput } from '../utils/stdin';
 
 export function createNoteCommand(): Command {
   const note = new Command('note').description('Manage notes');
+
+  note
+    .command('search')
+    .description('Search note content by meaning')
+    .argument('<query>', 'Search query')
+    .action(async (query: string) => {
+      try {
+        console.log(
+          formatJson(await callAttio('semantic-search-notes', { query }))
+        );
+      } catch (error) {
+        fail(error);
+      }
+    });
+
+  note
+    .command('metadata-search')
+    .description('Search notes by parent, author, meeting, or creation time')
+    .option('--parent-object <slug-or-id>', 'Parent record object')
+    .option('--parent-record-id <id>', 'Parent record ID')
+    .option('--meeting-id <id>', 'Associated meeting ID')
+    .option('--workspace-member-id <id>', 'Author workspace member ID')
+    .option('--from <timestamp>', 'Inclusive interval start')
+    .option('--before <timestamp>', 'Exclusive interval end')
+    .option('--limit <number>', 'Maximum notes to return', parseInt)
+    .option('--offset <number>', 'Number of notes to skip', parseInt)
+    .option('--all', 'Return every matching note')
+    .action(async (options) => {
+      try {
+        if (Boolean(options.parentObject) !== Boolean(options.parentRecordId)) {
+          throw new Error(
+            '--parent-object and --parent-record-id must be provided together.'
+          );
+        }
+        if (options.all && options.limit !== undefined) {
+          throw new Error('Cannot combine --all with --limit.');
+        }
+        const limit = requirePageLimit(options.limit, 50, 'Note') ?? 10;
+        const offset = options.offset ?? 0;
+        if (!Number.isInteger(offset) || offset < 0) {
+          throw new Error('Note offset must be a non-negative integer.');
+        }
+        const from =
+          typeof options.from === 'string'
+            ? attioExclusiveLowerBound(options.from)
+            : undefined;
+        const notes = (
+          await new NoteEndpoints(
+            new AttioClient(options.apiKey)
+          ).listAllNotes()
+        ).data.filter((note) => {
+          const raw = note as unknown as Record<string, unknown>;
+          const actor = note.created_by_actor as unknown as Record<
+            string,
+            unknown
+          >;
+          return (
+            (!options.parentObject ||
+              (note.parent_object === options.parentObject &&
+                note.parent_record_id === options.parentRecordId)) &&
+            (!options.meetingId || raw.meeting_id === options.meetingId) &&
+            (!options.workspaceMemberId ||
+              actor.id === options.workspaceMemberId) &&
+            (!from || note.created_at > from) &&
+            (!options.before || note.created_at < options.before)
+          );
+        });
+        const results = options.all
+          ? notes.slice(offset)
+          : notes.slice(offset, offset + limit);
+        const hasMore = offset + results.length < notes.length;
+        console.log(
+          formatJson({
+            results,
+            has_more: options.all ? false : hasMore,
+            next_offset:
+              options.all || !hasMore ? null : offset + results.length,
+          })
+        );
+      } catch (error) {
+        fail(error);
+      }
+    });
 
   // List notes
   note
@@ -17,7 +102,6 @@ export function createNoteCommand(): Command {
     .option('--all', 'Fetch every page and return a completion receipt')
     .option('--parent-object <slug>', 'Filter by parent object (e.g., people)')
     .option('--parent-record-id <id>', 'Filter by parent record ID')
-    .option('--format <format>', 'Output format (json|table|csv)', 'json')
     .action(async (options) => {
       try {
         if (options.all && options.offset !== undefined) {
@@ -35,22 +119,7 @@ export function createNoteCommand(): Command {
         const result = options.all
           ? await noteApi.listAllNotes(request)
           : await noteApi.listNotesPage(request);
-        const notes = result.data;
-
-        if (options.format === 'table') {
-          const tableData = notes.map((n) => ({
-            note_id: n.id.note_id,
-            title: n.title,
-            parent_object: n.parent_object,
-            format: n.format,
-            created_at: new Date(n.created_at).toISOString(),
-          }));
-          console.log(formatGenericTable(tableData));
-        } else if (options.format === 'csv') {
-          console.log(formatCsv(notes));
-        } else {
-          console.log(formatJson(result));
-        }
+        console.log(formatJson(result));
       } catch (error) {
         if (error instanceof Error) {
           console.error(`Error: ${error.message}`);
@@ -65,7 +134,6 @@ export function createNoteCommand(): Command {
     .command('get')
     .description('Get a specific note')
     .argument('<note-id>', 'Note ID')
-    .option('--format <format>', 'Output format (json|table|csv)', 'json')
     .action(async (noteId: string, options) => {
       try {
         const client = new AttioClient(options.apiKey);
@@ -73,23 +141,7 @@ export function createNoteCommand(): Command {
 
         const n = await noteApi.getNote(noteId);
 
-        if (options.format === 'table') {
-          console.log(
-            formatGenericTable([
-              {
-                note_id: n.id.note_id,
-                title: n.title,
-                parent_object: n.parent_object,
-                format: n.format,
-                created_at: new Date(n.created_at).toISOString(),
-              },
-            ])
-          );
-        } else if (options.format === 'csv') {
-          console.log(formatCsv(n));
-        } else {
-          console.log(formatJson(n));
-        }
+        console.log(formatJson(n));
       } catch (error) {
         if (error instanceof Error) {
           console.error(`Error: ${error.message}`);
@@ -103,60 +155,49 @@ export function createNoteCommand(): Command {
   note
     .command('create')
     .description('Create a new note')
-    .requiredOption('--parent-object <slug>', 'Parent object slug')
-    .requiredOption('--parent-record-id <id>', 'Parent record ID')
-    .requiredOption('--title <title>', 'Note title')
-    .requiredOption('--content <content>', 'Note content')
-    .option(
-      '--format <format>',
-      'Content format (plaintext|markdown)',
-      'plaintext'
-    )
-    .option('--meeting-id <id>', 'Associated meeting ID')
-    .option('--output <format>', 'Output format (json|table|csv)', 'json')
-    .action(async (options) => {
-      try {
-        const client = new AttioClient(options.apiKey);
-        const noteApi = new NoteEndpoints(client);
+    .argument('<object>', 'Parent object slug or ID')
+    .argument('<record-id>', 'Parent record ID')
+    .argument('<title>', 'Note title')
+    .argument('[content]', 'Note body; defaults to stdin')
+    .option('--markdown', 'Interpret the body as Markdown')
+    .option('--meeting <id>', 'Associated meeting ID')
+    .action(
+      async (
+        parentObject: string,
+        parentRecordId: string,
+        title: string,
+        content: string | undefined,
+        options
+      ) => {
+        try {
+          const client = new AttioClient(options.apiKey);
+          const noteApi = new NoteEndpoints(client);
 
-        const data = {
-          data: {
-            parent_object: options.parentObject,
-            parent_record_id: options.parentRecordId,
-            title: options.title,
-            format: options.format as 'plaintext' | 'markdown',
-            content: options.content,
-            meeting_id: options.meetingId || null,
-          },
-        };
+          const data = {
+            data: {
+              parent_object: parentObject,
+              parent_record_id: parentRecordId,
+              title,
+              format: options.markdown
+                ? ('markdown' as const)
+                : ('plaintext' as const),
+              content: await readInput(content, 'Note body'),
+              meeting_id: options.meeting || null,
+            },
+          };
 
-        const n = await noteApi.createNote(data);
+          const n = await noteApi.createNote(data);
 
-        if (options.output === 'table') {
-          console.log(
-            formatGenericTable([
-              {
-                note_id: n.id.note_id,
-                title: n.title,
-                parent_object: n.parent_object,
-                format: n.format,
-                created_at: new Date(n.created_at).toISOString(),
-              },
-            ])
-          );
-        } else if (options.output === 'csv') {
-          console.log(formatCsv(n));
-        } else {
           console.log(formatJson(n));
+        } catch (error) {
+          if (error instanceof Error) {
+            console.error(`Error: ${error.message}`);
+            process.exit(1);
+          }
+          throw error;
         }
-      } catch (error) {
-        if (error instanceof Error) {
-          console.error(`Error: ${error.message}`);
-          process.exit(1);
-        }
-        throw error;
       }
-    });
+    );
 
   // Delete note
   note
@@ -184,20 +225,18 @@ export function createNoteCommand(): Command {
     .command('update')
     .description('Update a note in place')
     .argument('<note-id>', 'Note ID to update')
-    .option('--title <title>', 'New note title')
-    .option('--content <content>', 'New note content')
-    .option(
-      '--content-format <format>',
-      'Content format (plaintext|markdown)',
-      'plaintext'
+    .argument(
+      '[content]',
+      'New note body; defaults to stdin when provided as -'
     )
-    .option('--format <format>', 'Output format (json|table|csv)', 'json')
-    .action(async (noteId: string, options) => {
+    .option('--title <title>', 'New note title')
+    .option('--markdown', 'Interpret the new body as Markdown')
+    .action(async (noteId: string, content: string | undefined, options) => {
       try {
         // Validate at least one update field is provided
-        if (!options.title && !options.content) {
+        if (!options.title && content === undefined) {
           console.error(
-            'Error: At least one of --title or --content must be provided'
+            'Error: Provide a body argument (or - for stdin) or --title.'
           );
           process.exit(1);
         }
@@ -212,30 +251,14 @@ export function createNoteCommand(): Command {
         } = {};
 
         if (options.title) updates.title = options.title;
-        if (options.content) {
-          updates.content = options.content;
-          updates.format = options.contentFormat as 'plaintext' | 'markdown';
+        if (content !== undefined) {
+          updates.content = await readInput(content, 'Note body');
+          updates.format = options.markdown ? 'markdown' : 'plaintext';
         }
 
         const updated = await noteApi.updateNote(noteId, updates);
 
-        if (options.format === 'table') {
-          console.log(
-            formatGenericTable([
-              {
-                note_id: updated.id.note_id,
-                title: updated.title,
-                parent_object: updated.parent_object,
-                format: updated.format,
-                created_at: new Date(updated.created_at).toISOString(),
-              },
-            ])
-          );
-        } else if (options.format === 'csv') {
-          console.log(formatCsv(updated));
-        } else {
-          console.log(formatJson(updated));
-        }
+        console.log(formatJson(updated));
       } catch (error) {
         if (error instanceof Error) {
           console.error(`Error: ${error.message}`);
@@ -256,7 +279,6 @@ export function createNoteCommand(): Command {
       '--title-pattern <pattern>',
       'Glob pattern to match (* = any chars, ? = single char)'
     )
-    .option('--format <format>', 'Output format (json|table|csv)', 'json')
     .action(async (parentObject: string, parentRecordId: string, options) => {
       try {
         // Validate exactly one of title or title-pattern is provided
@@ -283,20 +305,7 @@ export function createNoteCommand(): Command {
           }
         );
 
-        if (options.format === 'table') {
-          const tableData = notes.map((n) => ({
-            note_id: n.id.note_id,
-            title: n.title,
-            parent_object: n.parent_object,
-            format: n.format,
-            created_at: new Date(n.created_at).toISOString(),
-          }));
-          console.log(formatGenericTable(tableData));
-        } else if (options.format === 'csv') {
-          console.log(formatCsv(notes));
-        } else {
-          console.log(formatJson(notes));
-        }
+        console.log(formatJson(notes));
       } catch (error) {
         if (error instanceof Error) {
           console.error(`Error: ${error.message}`);
@@ -307,4 +316,10 @@ export function createNoteCommand(): Command {
     });
 
   return note;
+}
+
+function fail(error: unknown): never {
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(`Error: ${message}`);
+  process.exit(1);
 }

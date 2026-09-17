@@ -70,7 +70,7 @@ export class MeetingEndpoints {
       const page = await this.listMeetingsPage({
         ...options,
         ...(cursor ? { cursor } : {}),
-        limit: options.limit ?? 200,
+        limit: options.limit ?? 50,
       });
       pages += 1;
       observedItems += page.data.length;
@@ -102,8 +102,8 @@ export class MeetingEndpoints {
 
 function validateMeetingOptions(options: ListMeetingsOptions): void {
   const limit = options.limit ?? 50;
-  if (!Number.isInteger(limit) || limit < 1 || limit > 200) {
-    throw new Error('Meeting limit must be an integer between 1 and 200.');
+  if (!Number.isInteger(limit) || limit < 1 || limit > 50) {
+    throw new Error('Meeting limit must be an integer between 1 and 50.');
   }
   if (Boolean(options.linkedObject) !== Boolean(options.linkedRecordId)) {
     throw new Error(

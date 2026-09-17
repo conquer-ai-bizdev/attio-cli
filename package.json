@@ -1,14 +1,14 @@
 {
   "name": "attio-cli",
   "version": "0.1.0",
-  "description": "JSON-first Attio CLI with REST coverage and complete official MCP access",
+  "description": "A JSON-first command-line interface for Attio",
   "main": "dist/cli.js",
   "bin": {
     "attio": "./dist/cli.js"
   },
   "scripts": {
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
-    "build": "npm run clean && tsc",
+    "build": "npm run clean && tsc && node -e \"require('node:fs').chmodSync('dist/cli.js',0o755)\"",
     "dev": "tsx src/cli.ts",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -45,12 +45,13 @@
   ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
+    "@toon-format/toon": "^4.1.1",
     "@vercel/connect": "^1.0.0",
+    "@vercel/oidc": "3.8.5",
     "axios": "^1.6.7",
-    "cli-table3": "^0.6.3",
     "commander": "^12.0.0",
-    "csv-stringify": "^6.4.6",
     "dotenv": "^16.4.1",
+    "yaml": "^2.8.1",
     "zod": "^3.22.4"
   },
   "devDependencies": {

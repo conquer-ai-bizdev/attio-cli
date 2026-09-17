@@ -31,7 +31,7 @@ describe('MeetingEndpoints', () => {
     });
 
     await meetings.listMeetingsPage({
-      limit: 200,
+      limit: 50,
       participants: ['buyer@example.com'],
       endsFrom: '2026-08-17T00:00:00Z',
       startsBefore: '2026-09-17T00:00:00Z',
@@ -39,7 +39,7 @@ describe('MeetingEndpoints', () => {
     });
 
     expect(mockClient.get).toHaveBeenCalledWith('/meetings', {
-      limit: 200,
+      limit: 50,
       participants: 'buyer@example.com',
       ends_from: '2026-08-17T00:00:00Z',
       starts_before: '2026-09-17T00:00:00Z',

@@ -31,14 +31,13 @@ export class AttioClient {
   ): Promise<T> {
     try {
       const token = await getRestAccessToken(this.apiKeyOverride);
-      const response: AxiosResponse<T> =
-        await this.axiosInstance.request({
-          ...config,
-          headers: {
-            ...config.headers,
-            Authorization: `Bearer ${token}`,
-          },
-        });
+      const response: AxiosResponse<T> = await this.axiosInstance.request({
+        ...config,
+        headers: {
+          ...config.headers,
+          Authorization: `Bearer ${token}`,
+        },
+      });
       return response.data;
     } catch (error) {
       if (axios.isAxiosError(error)) {

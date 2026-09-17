@@ -2,15 +2,49 @@ import { Command } from 'commander';
 import { AttioClient } from '../api/client';
 import { RecordEndpoints } from '../api/endpoints/records';
 import { formatJson } from '../formatters/json';
-import { formatGenericTable } from '../formatters/table';
-import { formatCsv } from '../formatters/csv';
 import { validateFilterStructure } from '../utils/filter-validator';
-import { compactRecordValues } from '../utils/compact-formatter';
+import { callAttio } from '../api/connected-service';
+import { requirePageLimit } from '../utils/page-limit';
+import { readJsonInput, requireAtMostOneStdin } from '../utils/stdin';
 
 export function createRecordCommand(): Command {
   const record = new Command('record').description(
     'Manage records (people, companies, deals)'
   );
+
+  record
+    .command('search')
+    .description(
+      'Search records by name, domain, email, and other indexed fields'
+    )
+    .argument('<object>', 'Object slug or ID')
+    .argument('<query>', 'Search query')
+    .option('--limit <number>', 'Maximum records to return, up to 10', parseInt)
+    .option('--offset <number>', 'Number of records to skip', parseInt)
+    .action(async (objectSlug: string, query: string, options) => {
+      try {
+        requirePageLimit(options.limit, 10, 'Record search');
+        console.log(
+          formatJson(
+            await callAttio(
+              'search-records',
+              compact({
+                object: objectSlug,
+                query,
+                limit: options.limit,
+                offset: options.offset,
+              })
+            )
+          )
+        );
+      } catch (error) {
+        if (error instanceof Error) {
+          console.error(`Error: ${error.message}`);
+          process.exit(1);
+        }
+        throw error;
+      }
+    });
 
   // List records
   record
@@ -28,55 +62,39 @@ export function createRecordCommand(): Command {
       '--sort <json>',
       'Sort specification as JSON (e.g., \'[{"attribute":"name","direction":"asc"}]\')'
     )
-    .option('--format <format>', 'Output format (json|table|csv)', 'json')
-    .option('--verbose', 'Show full API response with metadata')
     .action(async (objectSlug: string, options) => {
       try {
         if (options.all && options.offset !== undefined) {
           throw new Error('Cannot combine --all with --offset.');
         }
+        requireAtMostOneStdin([
+          { name: '--filter', value: options.filter },
+          { name: '--sort', value: options.sort },
+        ]);
         const client = new AttioClient(options.apiKey);
         const recordApi = new RecordEndpoints(client);
 
         // Parse filter if provided
-        let filter;
+        let filter: Record<string, unknown> | undefined;
         if (options.filter) {
-          try {
-            filter = JSON.parse(options.filter);
-
-            // Validate filter structure
-            const validation = validateFilterStructure(filter);
-            if (!validation.valid) {
-              console.error('Error: Invalid filter structure');
-              validation.errors.forEach((err) => console.error(`  - ${err}`));
-              console.error(
-                '\nExample: --filter \'{"email_addresses":{"email_address":{"$eq":"user@example.com"}}}\''
-              );
-              process.exit(1);
-            }
-          } catch (error) {
-            console.error('Error: Invalid JSON in --filter option');
-            console.error(
-              'Example: --filter \'{"email_addresses":{"email_address":{"$eq":"user@example.com"}}}\''
+          filter = await readJsonInput<Record<string, unknown>>(
+            options.filter,
+            '--filter'
+          );
+          const validation = validateFilterStructure(filter);
+          if (!validation.valid) {
+            throw new Error(
+              `Invalid --filter structure: ${validation.errors.join('; ')}`
             );
-            process.exit(1);
           }
         }
 
         // Parse sort if provided
         let sorts;
         if (options.sort) {
-          try {
-            sorts = JSON.parse(options.sort);
-            if (!Array.isArray(sorts)) {
-              throw new Error('Sort must be an array');
-            }
-          } catch (error) {
-            console.error('Error: Invalid JSON in --sort option');
-            console.error(
-              'Example: --sort \'[{"attribute":"name","direction":"asc"}]\''
-            );
-            process.exit(1);
+          sorts = await readJsonInput(options.sort, '--sort');
+          if (!Array.isArray(sorts)) {
+            throw new Error('--sort must be a JSON array.');
           }
         }
 
@@ -91,30 +109,11 @@ export function createRecordCommand(): Command {
           : await recordApi.listRecordsPage(objectSlug, request);
 
         // Apply compact formatting unless verbose mode is enabled
-        const displayRecords = options.verbose
-          ? result.data
-          : result.data.map((rec) => ({
-              ...rec,
-              values: compactRecordValues(rec.values, {
-                verbose: false,
-                includeTestAttributes: false,
-              }),
-            }));
+        const displayRecords = result.data;
 
-        if (options.format === 'table') {
-          const tableData = displayRecords.map((rec) => ({
-            record_id: rec.id.record_id,
-            ...flattenValues(rec.values),
-            created_at: new Date(rec.created_at).toISOString(),
-          }));
-          console.log(formatGenericTable(tableData));
-        } else if (options.format === 'csv') {
-          console.log(formatCsv(displayRecords));
-        } else {
-          console.log(
-            formatJson({ data: displayRecords, pagination: result.pagination })
-          );
-        }
+        console.log(
+          formatJson({ data: displayRecords, pagination: result.pagination })
+        );
       } catch (error) {
         if (error instanceof Error) {
           console.error(`Error: ${error.message}`);
@@ -130,8 +129,6 @@ export function createRecordCommand(): Command {
     .description('Get a specific record')
     .argument('<object>', 'Object slug (e.g., people, companies, deals)')
     .argument('<record-id>', 'Record ID')
-    .option('--format <format>', 'Output format (json|table|csv)', 'json')
-    .option('--verbose', 'Show full API response with metadata')
     .action(async (objectSlug: string, recordId: string, options) => {
       try {
         const client = new AttioClient(options.apiKey);
@@ -140,30 +137,9 @@ export function createRecordCommand(): Command {
         const rec = await recordApi.getRecord(objectSlug, recordId);
 
         // Apply compact formatting unless verbose mode is enabled
-        const displayRecord = options.verbose
-          ? rec
-          : {
-              ...rec,
-              values: compactRecordValues(rec.values, {
-                verbose: false,
-                includeTestAttributes: false,
-              }),
-            };
+        const displayRecord = rec;
 
-        if (options.format === 'table') {
-          const tableData = [
-            {
-              record_id: displayRecord.id.record_id,
-              ...flattenValues(displayRecord.values),
-              created_at: new Date(displayRecord.created_at).toISOString(),
-            },
-          ];
-          console.log(formatGenericTable(tableData));
-        } else if (options.format === 'csv') {
-          console.log(formatCsv(displayRecord));
-        } else {
-          console.log(formatJson(displayRecord));
-        }
+        console.log(formatJson(displayRecord));
       } catch (error) {
         if (error instanceof Error) {
           console.error(`Error: ${error.message}`);
@@ -179,38 +155,22 @@ export function createRecordCommand(): Command {
     .description('Get the records that exist from a list of record IDs')
     .argument('<object>', 'Object slug (e.g., people, companies, deals)')
     .argument('<record-ids...>', 'One or more record IDs')
-    .option('--format <format>', 'Output format (json|table|csv)', 'json')
-    .option('--verbose', 'Show full API response with metadata')
     .action(async (objectSlug: string, recordIds: string[], options) => {
       try {
         const client = new AttioClient(options.apiKey);
         const recordApi = new RecordEndpoints(client);
         const records = await recordApi.getRecordsByIds(objectSlug, recordIds);
-        const displayRecords = options.verbose
-          ? records
-          : records.map((rec) => ({
-              ...rec,
-              values: compactRecordValues(rec.values, {
-                verbose: false,
-                includeTestAttributes: false,
-              }),
-            }));
+        const displayRecords = records;
 
-        if (options.format === 'table') {
-          console.log(
-            formatGenericTable(
-              displayRecords.map((rec) => ({
-                record_id: rec.id.record_id,
-                ...flattenValues(rec.values),
-                created_at: new Date(rec.created_at).toISOString(),
-              }))
-            )
-          );
-        } else if (options.format === 'csv') {
-          console.log(formatCsv(displayRecords));
-        } else {
-          console.log(formatJson(displayRecords));
-        }
+        const foundIds = new Set(records.map((record) => record.id.record_id));
+        console.log(
+          formatJson({
+            records: displayRecords,
+            missing_record_ids: [
+              ...new Set(recordIds.filter((id) => !foundIds.has(id))),
+            ],
+          })
+        );
       } catch (error) {
         if (error instanceof Error) {
           console.error(`Error: ${error.message}`);
@@ -225,44 +185,27 @@ export function createRecordCommand(): Command {
     .command('create')
     .description('Create a new record')
     .argument('<object>', 'Object slug (e.g., people, companies, deals)')
-    .requiredOption('--data <json>', 'Record data as JSON string')
-    .option('--format <format>', 'Output format (json|table|csv)', 'json')
-    .option('--verbose', 'Show full API response with metadata')
-    .action(async (objectSlug: string, options) => {
+    .argument('[json]', 'Record values as JSON; defaults to stdin')
+    .action(async (objectSlug: string, json: string | undefined, options) => {
       try {
         const client = new AttioClient(options.apiKey);
         const recordApi = new RecordEndpoints(client);
 
-        const data = JSON.parse(options.data);
-        const rec = await recordApi.createRecord(objectSlug, {
-          data: { values: data },
+        const data = await readJsonInput(json, 'Record values');
+        const created = await callAttio('create-record', {
+          object: objectSlug,
+          values: data,
         });
+        const recordId = recordIdFrom(created);
+        if (!recordId) {
+          throw new Error('Attio created the record without returning its ID.');
+        }
+        const rec = await recordApi.getRecord(objectSlug, recordId);
 
         // Apply compact formatting unless verbose mode is enabled
-        const displayRecord = options.verbose
-          ? rec
-          : {
-              ...rec,
-              values: compactRecordValues(rec.values, {
-                verbose: false,
-                includeTestAttributes: false,
-              }),
-            };
+        const displayRecord = rec;
 
-        if (options.format === 'table') {
-          const tableData = [
-            {
-              record_id: displayRecord.id.record_id,
-              ...flattenValues(displayRecord.values),
-              created_at: new Date(displayRecord.created_at).toISOString(),
-            },
-          ];
-          console.log(formatGenericTable(tableData));
-        } else if (options.format === 'csv') {
-          console.log(formatCsv(displayRecord));
-        } else {
-          console.log(formatJson(displayRecord));
-        }
+        console.log(formatJson(displayRecord));
       } catch (error) {
         if (error instanceof Error) {
           console.error(`Error: ${error.message}`);
@@ -278,52 +221,44 @@ export function createRecordCommand(): Command {
     .description('Update an existing record')
     .argument('<object>', 'Object slug (e.g., people, companies, deals)')
     .argument('<record-id>', 'Record ID')
-    .requiredOption('--data <json>', 'Updated data as JSON string')
-    .option('--format <format>', 'Output format (json|table|csv)', 'json')
-    .option('--verbose', 'Show full API response with metadata')
-    .action(async (objectSlug: string, recordId: string, options) => {
-      try {
-        const client = new AttioClient(options.apiKey);
-        const recordApi = new RecordEndpoints(client);
+    .argument('[json]', 'Updated values as JSON; defaults to stdin')
+    .option(
+      '--replace',
+      'Replace supplied multiselect values instead of prepending them'
+    )
+    .action(
+      async (
+        objectSlug: string,
+        recordId: string,
+        json: string | undefined,
+        options
+      ) => {
+        try {
+          const client = new AttioClient(options.apiKey);
+          const recordApi = new RecordEndpoints(client);
 
-        const data = JSON.parse(options.data);
-        const rec = await recordApi.updateRecord(objectSlug, recordId, {
-          data: { values: data },
-        });
+          const data = await readJsonInput(json, 'Updated record values');
+          await callAttio('update-record', {
+            object: objectSlug,
+            record_id: recordId,
+            values: data,
+            patch_multiselect_values: !options.replace,
+          });
+          const rec = await recordApi.getRecord(objectSlug, recordId);
 
-        // Apply compact formatting unless verbose mode is enabled
-        const displayRecord = options.verbose
-          ? rec
-          : {
-              ...rec,
-              values: compactRecordValues(rec.values, {
-                verbose: false,
-                includeTestAttributes: false,
-              }),
-            };
+          // Apply compact formatting unless verbose mode is enabled
+          const displayRecord = rec;
 
-        if (options.format === 'table') {
-          const tableData = [
-            {
-              record_id: displayRecord.id.record_id,
-              ...flattenValues(displayRecord.values),
-              created_at: new Date(displayRecord.created_at).toISOString(),
-            },
-          ];
-          console.log(formatGenericTable(tableData));
-        } else if (options.format === 'csv') {
-          console.log(formatCsv(displayRecord));
-        } else {
           console.log(formatJson(displayRecord));
+        } catch (error) {
+          if (error instanceof Error) {
+            console.error(`Error: ${error.message}`);
+            process.exit(1);
+          }
+          throw error;
         }
-      } catch (error) {
-        if (error instanceof Error) {
-          console.error(`Error: ${error.message}`);
-          process.exit(1);
-        }
-        throw error;
       }
-    });
+    );
 
   // Delete record
   record
@@ -357,36 +292,25 @@ export function createRecordCommand(): Command {
     .argument('<object>', 'Object slug or ID')
     .argument('<primary-record-id>', 'Record whose conflicting values win')
     .argument('<secondary-record-id>', 'Record merged into the primary record')
-    .option('--format <format>', 'Output format (json|table|csv)', 'json')
     .action(
       async (
         objectSlug: string,
         primaryRecordId: string,
-        secondaryRecordId: string,
-        options
+        secondaryRecordId: string
       ) => {
         try {
-          const recordApi = new RecordEndpoints(
-            new AttioClient(options.apiKey)
-          );
-          const result = await recordApi.mergeRecords(
-            objectSlug,
-            primaryRecordId,
-            secondaryRecordId
-          );
+          const result = await callAttio('merge-records', {
+            object: objectSlug,
+            primary_record_id: primaryRecordId,
+            secondary_record_id: secondaryRecordId,
+          });
           const output = {
             object: objectSlug,
             primary_record_id: primaryRecordId,
             secondary_record_id: secondaryRecordId,
-            ...result,
+            result,
           };
-          if (options.format === 'table') {
-            console.log(formatGenericTable([output]));
-          } else if (options.format === 'csv') {
-            console.log(formatCsv(output));
-          } else {
-            console.log(formatJson(output));
-          }
+          console.log(formatJson(output));
         } catch (error) {
           if (error instanceof Error) {
             console.error(`Error: ${error.message}`);
@@ -401,100 +325,71 @@ export function createRecordCommand(): Command {
     .command('assert')
     .description('Assert (upsert) a record using matching attribute')
     .argument('<object>', 'Object slug (e.g., people, companies, deals)')
-    .requiredOption(
-      '--matching-attribute <slug>',
-      'Attribute to match on (e.g., email_addresses)'
+    .argument('<attribute>', 'Matching attribute (e.g., email_addresses)')
+    .argument('[json]', 'Record values as JSON; defaults to stdin')
+    .option(
+      '--replace',
+      'Replace supplied multiselect values instead of prepending them'
     )
-    .requiredOption('--data <json>', 'Record data as JSON')
-    .option('--format <format>', 'Output format (json|table|csv)', 'json')
-    .option('--verbose', 'Show full API response with metadata')
-    .action(async (objectSlug: string, options) => {
-      try {
-        const client = new AttioClient(options.apiKey);
-        const recordApi = new RecordEndpoints(client);
-
-        let data;
+    .action(
+      async (
+        objectSlug: string,
+        matchingAttribute: string,
+        json: string | undefined,
+        options
+      ) => {
         try {
-          data = JSON.parse(options.data);
-        } catch (error) {
-          console.error('Error: Invalid JSON in --data option');
-          console.error(
-            'Example: --data \'{"email_addresses":[{"email_address":"test@example.com"}]}\''
-          );
-          process.exit(1);
-        }
+          const client = new AttioClient(options.apiKey);
+          const recordApi = new RecordEndpoints(client);
 
-        const rec = await recordApi.assertRecord(
-          objectSlug,
-          options.matchingAttribute,
-          { data: { values: data } }
-        );
+          const data = await readJsonInput(json, 'Record values');
 
-        // Apply compact formatting unless verbose mode is enabled
-        const displayRecord = options.verbose
-          ? rec
-          : {
-              ...rec,
-              values: compactRecordValues(rec.values, {
-                verbose: false,
-                includeTestAttributes: false,
-              }),
-            };
+          const upserted = await callAttio('upsert-record', {
+            object: objectSlug,
+            matching_attribute: matchingAttribute,
+            values: data,
+            patch_multiselect_values: !options.replace,
+          });
+          const recordId = recordIdFrom(upserted);
+          if (!recordId) {
+            throw new Error(
+              'Attio upserted the record without returning its ID.'
+            );
+          }
+          const rec = await recordApi.getRecord(objectSlug, recordId);
 
-        if (options.format === 'table') {
-          const tableData = {
-            record_id: displayRecord.id.record_id,
-            object_id: displayRecord.id.object_id,
-            ...flattenValues(displayRecord.values),
-            created_at: new Date(displayRecord.created_at).toISOString(),
-          };
-          console.log(formatGenericTable([tableData]));
-        } else if (options.format === 'csv') {
-          console.log(formatCsv(displayRecord));
-        } else {
+          // Apply compact formatting unless verbose mode is enabled
+          const displayRecord = rec;
+
           console.log(formatJson(displayRecord));
+        } catch (error) {
+          if (error instanceof Error) {
+            console.error(`Error: ${error.message}`);
+            process.exit(1);
+          }
+          throw error;
         }
-      } catch (error) {
-        if (error instanceof Error) {
-          console.error(`Error: ${error.message}`);
-          process.exit(1);
-        }
-        throw error;
       }
-    });
+    );
 
   return record;
 }
 
-// Helper to flatten record values for display in tables
-// Note: Values should already be compacted via compactRecordValues before calling this
-function flattenValues(
-  values: Record<string, unknown>
-): Record<string, string> {
-  const flattened: Record<string, string> = {};
-
-  for (const [key, value] of Object.entries(values)) {
-    if (value === null || value === undefined) {
-      // Null values (from empty attributes) → display as empty string
-      flattened[key] = '';
-    } else if (
-      typeof value === 'string' ||
-      typeof value === 'number' ||
-      typeof value === 'boolean'
-    ) {
-      // Primitive values → convert to string
-      flattened[key] = String(value);
-    } else if (Array.isArray(value)) {
-      // Arrays → join with commas for readability
-      flattened[key] = value.map((v) => String(v)).join(', ');
-    } else if (typeof value === 'object') {
-      // Objects → stringify
-      flattened[key] = JSON.stringify(value);
-    } else {
-      // Fallback
-      flattened[key] = String(value);
-    }
+function recordIdFrom(value: unknown): string | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return undefined;
   }
+  const record = value as Record<string, unknown>;
+  if (typeof record.record_id === 'string') return record.record_id;
+  if (record.id && typeof record.id === 'object' && !Array.isArray(record.id)) {
+    const id = (record.id as Record<string, unknown>).record_id;
+    if (typeof id === 'string') return id;
+  }
+  return undefined;
+}
 
-  return flattened;
+function compact(value: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(value).filter(([, item]) => item !== undefined)
+  );
 }
