@@ -13,6 +13,22 @@ describe('WorkspaceEndpoints', () => {
     workspaceEndpoints = new WorkspaceEndpoints(mockClient);
   });
 
+  it('gets the current token identity without discarding scopes or actor ids', async () => {
+    const identity = {
+      active: true,
+      scope: 'record_permission:read-write note:read-write',
+      client_id: 'client-id',
+      authorized_by_workspace_member_id: 'member-id',
+      token_type: 'Bearer',
+    };
+    mockClient.get.mockResolvedValue(identity);
+
+    await expect(workspaceEndpoints.getCurrentIdentity()).resolves.toEqual(
+      identity
+    );
+    expect(mockClient.get).toHaveBeenCalledWith('/self');
+  });
+
   describe('listMembers', () => {
     it('should fetch workspace members without options', async () => {
       const mockResponse = {

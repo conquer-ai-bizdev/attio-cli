@@ -14,16 +14,32 @@ function globToRegex(pattern: string): RegExp {
   return new RegExp(`^${escaped}$`, 'i'); // Case-insensitive, full match
 }
 
-export interface UpdateNoteResult {
-  newNote: Note;
-  oldNoteId: string;
-}
-
 export interface ListNotesOptions {
   limit?: number;
   offset?: number;
   parent_object?: string;
   parent_record_id?: string;
+}
+
+export interface NotePage {
+  data: Note[];
+  pagination: {
+    complete: boolean;
+    offset: number;
+    limit: number;
+    next_offset: number | null;
+  };
+}
+
+export interface CompleteNoteInventory {
+  data: Note[];
+  pagination: {
+    complete: true;
+    pages: number;
+    items: number;
+    duplicates_removed: number;
+    next_offset: null;
+  };
 }
 
 export interface CreateNoteData {
@@ -42,16 +58,62 @@ export class NoteEndpoints {
   constructor(private client: AttioClient) {}
 
   async listNotes(options?: ListNotesOptions): Promise<Note[]> {
-    const params: Record<string, unknown> = {};
-    if (options?.limit) params.limit = options.limit;
-    if (options?.offset) params.offset = options.offset;
-    if (options?.parent_object) params.parent_object = options.parent_object;
-    if (options?.parent_record_id)
+    return (await this.listNotesPage(options)).data;
+  }
+
+  async listNotesPage(options: ListNotesOptions = {}): Promise<NotePage> {
+    validateNoteOptions(options);
+    const limit = options.limit ?? 10;
+    const offset = options.offset ?? 0;
+    const params: Record<string, unknown> = { limit, offset };
+    if (options.parent_object) params.parent_object = options.parent_object;
+    if (options.parent_record_id)
       params.parent_record_id = options.parent_record_id;
 
     const response = await this.client.get('/notes', params);
     const validated = validate(NotesResponseSchema, response);
-    return validated.data;
+    const complete = validated.data.length < limit;
+    return {
+      data: validated.data,
+      pagination: {
+        complete,
+        offset,
+        limit,
+        next_offset: complete ? null : offset + validated.data.length,
+      },
+    };
+  }
+
+  async listAllNotes(
+    options: Omit<ListNotesOptions, 'offset'> = {}
+  ): Promise<CompleteNoteInventory> {
+    const limit = options.limit ?? 50;
+    validateNoteOptions({ ...options, limit });
+    const byId = new Map<string, Note>();
+    let offset = 0;
+    let pages = 0;
+    let observedItems = 0;
+
+    while (true) {
+      const page = await this.listNotesPage({ ...options, limit, offset });
+      pages += 1;
+      observedItems += page.data.length;
+      for (const note of page.data) byId.set(note.id.note_id, note);
+      if (page.pagination.complete) break;
+      offset = page.pagination.next_offset!;
+    }
+
+    const data = [...byId.values()];
+    return {
+      data,
+      pagination: {
+        complete: true,
+        pages,
+        items: data.length,
+        duplicates_removed: observedItems - data.length,
+        next_offset: null,
+      },
+    };
   }
 
   async getNote(noteId: string): Promise<Note> {
@@ -70,10 +132,6 @@ export class NoteEndpoints {
     await this.client.delete(`/notes/${noteId}`);
   }
 
-  /**
-   * Update a note via create-then-delete (Attio API doesn't support PATCH)
-   * Creates a new note with updated fields, then deletes the original
-   */
   async updateNote(
     noteId: string,
     updates: {
@@ -81,53 +139,12 @@ export class NoteEndpoints {
       content?: string;
       format?: 'plaintext' | 'markdown';
     }
-  ): Promise<UpdateNoteResult> {
-    // Fetch the original note
-    const original = await this.getNote(noteId);
-
-    // Determine the format to use (default to plaintext if not specified)
-    // Note: 'html' format from API is converted to 'plaintext' for creation
-    const originalFormat = original.format === 'markdown' ? 'markdown' : 'plaintext';
-    const newFormat = updates.format || originalFormat;
-
-    // Determine the content to use
-    let newContent: string;
-
-    if (updates.content !== undefined) {
-      newContent = updates.content;
-    } else {
-      // Use appropriate content field based on format
-      newContent =
-        newFormat === 'markdown'
-          ? original.content_markdown || original.content_plaintext || ''
-          : original.content_plaintext || '';
-    }
-
-    // Create new note with same parent, updated fields
-    const newNote = await this.createNote({
-      data: {
-        parent_object: original.parent_object,
-        parent_record_id: original.parent_record_id,
-        title: updates.title ?? original.title,
-        format: newFormat,
-        content: newContent,
-      },
+  ): Promise<Note> {
+    const response = await this.client.patch(`/notes/${noteId}`, {
+      data: updates,
     });
-
-    // Delete the original note
-    try {
-      await this.deleteNote(noteId);
-    } catch (error) {
-      // Warn but don't fail - the new note was created successfully
-      console.warn(
-        `Warning: Failed to delete original note ${noteId}. New note ${newNote.id.note_id} was created successfully.`
-      );
-    }
-
-    return {
-      newNote,
-      oldNoteId: noteId,
-    };
+    const dataResponse = response as { data: unknown };
+    return validate(NoteSchema, dataResponse.data);
   }
 
   /**
@@ -139,10 +156,12 @@ export class NoteEndpoints {
     options: { title?: string; titlePattern?: string }
   ): Promise<Note[]> {
     // List all notes for the parent record
-    const notes = await this.listNotes({
-      parent_object: parentObject,
-      parent_record_id: parentRecordId,
-    });
+    const notes = (
+      await this.listAllNotes({
+        parent_object: parentObject,
+        parent_record_id: parentRecordId,
+      })
+    ).data;
 
     // Filter by exact title or pattern
     if (options.title) {
@@ -158,5 +177,21 @@ export class NoteEndpoints {
     }
 
     return notes;
+  }
+}
+
+function validateNoteOptions(options: ListNotesOptions): void {
+  const limit = options.limit ?? 10;
+  const offset = options.offset ?? 0;
+  if (!Number.isInteger(limit) || limit < 1 || limit > 50) {
+    throw new Error('Note limit must be an integer between 1 and 50.');
+  }
+  if (!Number.isInteger(offset) || offset < 0) {
+    throw new Error('Note offset must be a non-negative integer.');
+  }
+  if (Boolean(options.parent_object) !== Boolean(options.parent_record_id)) {
+    throw new Error(
+      '--parent-object and --parent-record-id must be provided together.'
+    );
   }
 }

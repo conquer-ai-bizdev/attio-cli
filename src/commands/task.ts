@@ -14,20 +14,26 @@ export function createTaskCommand(): Command {
     .description('List tasks')
     .option('--limit <number>', 'Maximum tasks to return', parseInt)
     .option('--offset <number>', 'Number of tasks to skip', parseInt)
+    .option('--all', 'Fetch every page and return a completion receipt')
     .option('--sort <sort>', 'Sort order (created_at:asc or created_at:desc)')
     .option('--linked-object <slug>', 'Filter by linked object (e.g., people)')
     .option('--linked-record-id <id>', 'Filter by linked record ID')
     .option('--assignee <email-or-id>', 'Filter by assignee')
-    .option('--completed <boolean>', 'Filter by completion status', (val) =>
-      val === 'true'
+    .option(
+      '--completed <boolean>',
+      'Filter by completion status',
+      (val) => val === 'true'
     )
     .option('--format <format>', 'Output format (json|table|csv)', 'json')
     .action(async (options) => {
       try {
+        if (options.all && options.offset !== undefined) {
+          throw new Error('Cannot combine --all with --offset.');
+        }
         const client = new AttioClient(options.apiKey);
         const taskApi = new TaskEndpoints(client);
 
-        const tasks = await taskApi.listTasks({
+        const request = {
           limit: options.limit,
           offset: options.offset,
           sort: options.sort,
@@ -35,7 +41,11 @@ export function createTaskCommand(): Command {
           linked_record_id: options.linkedRecordId,
           assignee: options.assignee,
           is_completed: options.completed,
-        });
+        };
+        const result = options.all
+          ? await taskApi.listAllTasks(request)
+          : await taskApi.listTasksPage(request);
+        const tasks = result.data;
 
         if (options.format === 'table') {
           const tableData = tasks.map((t) => ({
@@ -51,7 +61,7 @@ export function createTaskCommand(): Command {
         } else if (options.format === 'csv') {
           console.log(formatCsv(tasks));
         } else {
-          console.log(formatJson(tasks));
+          console.log(formatJson(result));
         }
       } catch (error) {
         if (error instanceof Error) {
@@ -110,20 +120,36 @@ export function createTaskCommand(): Command {
     .requiredOption('--content <content>', 'Task content (max 2000 characters)')
     .option('--deadline <date>', 'Deadline (ISO 8601 timestamp)')
     .option('--completed', 'Mark as completed', false)
+    .option('--linked-object <slug>', 'Object of the linked record')
     .option('--linked-record-id <id>', 'Link to a record by ID')
     .option('--assignee-id <id>', 'Assign to a workspace member by ID')
     .option('--output <format>', 'Output format (json|table|csv)', 'json')
     .action(async (options) => {
       try {
+        if (Boolean(options.linkedObject) !== Boolean(options.linkedRecordId)) {
+          throw new Error(
+            '--linked-object and --linked-record-id must be provided together.'
+          );
+        }
         const client = new AttioClient(options.apiKey);
         const taskApi = new TaskEndpoints(client);
 
         const linked_records = options.linkedRecordId
-          ? [{ target_record_id: options.linkedRecordId }]
+          ? [
+              {
+                target_object: options.linkedObject,
+                target_record_id: options.linkedRecordId,
+              },
+            ]
           : [];
 
         const assignees = options.assigneeId
-          ? [{ referenced_actor_id: options.assigneeId }]
+          ? [
+              {
+                referenced_actor_type: 'workspace-member' as const,
+                referenced_actor_id: options.assigneeId,
+              },
+            ]
           : [];
 
         const data = {
@@ -173,8 +199,10 @@ export function createTaskCommand(): Command {
     .description('Update an existing task')
     .argument('<task-id>', 'Task ID')
     .option('--deadline <date>', 'Updated deadline (ISO 8601 timestamp)')
-    .option('--completed <boolean>', 'Completion status', (val) =>
-      val === 'true'
+    .option(
+      '--completed <boolean>',
+      'Completion status',
+      (val) => val === 'true'
     )
     .option('--output <format>', 'Output format (json|table|csv)', 'json')
     .action(async (taskId: string, options) => {
@@ -182,7 +210,9 @@ export function createTaskCommand(): Command {
         const client = new AttioClient(options.apiKey);
         const taskApi = new TaskEndpoints(client);
 
-        const data: { data: { deadline_at?: string | null; is_completed?: boolean } } = {
+        const data: {
+          data: { deadline_at?: string | null; is_completed?: boolean };
+        } = {
           data: {},
         };
 
@@ -231,7 +261,7 @@ export function createTaskCommand(): Command {
         const taskApi = new TaskEndpoints(client);
 
         await taskApi.deleteTask(taskId);
-        console.log(`Task ${taskId} deleted successfully`);
+        console.log(formatJson({ deleted: true, task_id: taskId }));
       } catch (error) {
         if (error instanceof Error) {
           console.error(`Error: ${error.message}`);

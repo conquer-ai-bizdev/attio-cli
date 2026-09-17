@@ -3,6 +3,8 @@ import {
   WorkspaceMembersResponseSchema,
   WorkspaceMemberSchema,
   WorkspaceMember,
+  WorkspaceIdentitySchema,
+  WorkspaceIdentity,
 } from '../types';
 import { validate } from '../../utils/validation';
 
@@ -13,6 +15,11 @@ export interface ListWorkspaceMembersOptions {
 
 export class WorkspaceEndpoints {
   constructor(private client: AttioClient) {}
+
+  async getCurrentIdentity(): Promise<WorkspaceIdentity> {
+    const response = await this.client.get('/self');
+    return validate(WorkspaceIdentitySchema, response);
+  }
 
   async listMembers(
     options?: ListWorkspaceMembersOptions

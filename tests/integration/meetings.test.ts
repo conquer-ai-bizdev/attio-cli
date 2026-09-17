@@ -6,7 +6,6 @@ import * as dotenv from 'dotenv';
 dotenv.config();
 
 describe('Meetings Integration Tests (Read-Only)', () => {
-  let client: AttioClient;
   let meetingApi: MeetingEndpoints;
 
   beforeAll(() => {
@@ -15,129 +14,44 @@ describe('Meetings Integration Tests (Read-Only)', () => {
         'ATTIO_API_KEY not found in environment. Cannot run integration tests.'
       );
     }
-    client = new AttioClient();
-    meetingApi = new MeetingEndpoints(client);
+    meetingApi = new MeetingEndpoints(new AttioClient());
   });
 
-  describe('List Meetings', () => {
-    it('should list meetings', async () => {
-      const meetings = await meetingApi.listMeetings({ limit: 5 });
+  it('lists a live page using the current response shape', async () => {
+    const page = await meetingApi.listMeetingsPage({ limit: 5 });
 
-      expect(meetings).toBeInstanceOf(Array);
-
-      if (meetings.length > 0) {
-        const meeting = meetings[0];
-        expect(meeting.id).toBeDefined();
-        expect(meeting.id.meeting_id).toBeDefined();
-        expect(meeting.title).toBeDefined();
-        expect(meeting.created_at).toBeDefined();
-        // start_at, end_at, and organizer are optional
-      }
-    });
-
-    it('should respect limit parameter', async () => {
-      const meetings = await meetingApi.listMeetings({ limit: 2 });
-
-      expect(meetings).toBeInstanceOf(Array);
-      expect(meetings.length).toBeLessThanOrEqual(2);
-    });
-
-    it('should sort meetings by start_at ascending', async () => {
-      const meetings = await meetingApi.listMeetings({
-        sort: 'start_asc',
-        limit: 5,
-      });
-
-      expect(meetings).toBeInstanceOf(Array);
-
-      if (meetings.length >= 2) {
-        const meeting1 = meetings[0];
-        const meeting2 = meetings[1];
-        if (meeting1.start_at && meeting2.start_at) {
-          const firstStart = new Date(meeting1.start_at);
-          const secondStart = new Date(meeting2.start_at);
-          expect(firstStart.getTime()).toBeLessThanOrEqual(
-            secondStart.getTime()
-          );
-        }
-      }
-    });
-
-    it('should sort meetings by start_at descending', async () => {
-      const meetings = await meetingApi.listMeetings({
-        sort: 'start_desc',
-        limit: 5,
-      });
-
-      expect(meetings).toBeInstanceOf(Array);
-
-      if (meetings.length >= 2) {
-        const meeting1 = meetings[0];
-        const meeting2 = meetings[1];
-        if (meeting1.start_at && meeting2.start_at) {
-          const firstStart = new Date(meeting1.start_at);
-          const secondStart = new Date(meeting2.start_at);
-          expect(firstStart.getTime()).toBeGreaterThanOrEqual(
-            secondStart.getTime()
-          );
-        }
-      }
-    });
+    expect(page.data).toBeInstanceOf(Array);
+    expect(page.data.length).toBeLessThanOrEqual(5);
+    expect(
+      page.nextCursor === null || typeof page.nextCursor === 'string'
+    ).toBe(true);
+    if (page.data.length > 0) {
+      const meeting = page.data[0];
+      expect(meeting.id.meeting_id).toBeDefined();
+      expect(meeting.start).toBeDefined();
+      expect(meeting.end).toBeDefined();
+      expect(meeting.participants).toBeInstanceOf(Array);
+      expect(meeting.linked_records).toBeInstanceOf(Array);
+    }
   });
 
-  describe('Get Meeting', () => {
-    it('should get a specific meeting if any exist', async () => {
-      const meetings = await meetingApi.listMeetings({ limit: 1 });
+  it('gets a live meeting by ID', async () => {
+    const page = await meetingApi.listMeetingsPage({ limit: 1 });
+    if (page.data.length === 0) return;
 
-      if (meetings.length > 0) {
-        const meetingId = meetings[0].id.meeting_id;
-        const meeting = await meetingApi.getMeeting(meetingId);
-
-        expect(meeting).toBeDefined();
-        expect(meeting.id.meeting_id).toBe(meetingId);
-        expect(meeting.title).toBeDefined();
-
-        console.log(`✓ Retrieved meeting: ${meetingId}`);
-      } else {
-        console.log('⚠ No meetings found to test get operation');
-      }
-    });
+    const meetingId = page.data[0].id.meeting_id;
+    const meeting = await meetingApi.getMeeting(meetingId);
+    expect(meeting.id.meeting_id).toBe(meetingId);
   });
 
-  describe('Error Handling', () => {
-    it('should throw error for invalid meeting ID', async () => {
-      await expect(
-        meetingApi.getMeeting('invalid-meeting-id-12345')
-      ).rejects.toThrow();
+  it('returns a completion receipt for an interval inventory', async () => {
+    const result = await meetingApi.listAllMeetings({
+      endsFrom: '2026-09-01T00:00:00Z',
+      startsBefore: '2026-09-02T00:00:00Z',
     });
-  });
 
-  describe('Filter Meetings', () => {
-    it('should filter meetings by linked record if any exist', async () => {
-      // First get any meeting
-      const allMeetings = await meetingApi.listMeetings({ limit: 1 });
-
-      if (allMeetings.length > 0 && allMeetings[0].linked_records) {
-        const linkedRecords = allMeetings[0].linked_records;
-        if (linkedRecords.length > 0) {
-          const { target_object, target_record_id } = linkedRecords[0];
-
-          // Try to filter by this linked record
-          const filteredMeetings = await meetingApi.listMeetings({
-            linked_object: target_object,
-            linked_record_id: target_record_id,
-          });
-
-          expect(filteredMeetings).toBeInstanceOf(Array);
-          console.log(
-            `✓ Filtered meetings by linked record: ${target_record_id}`
-          );
-        } else {
-          console.log('⚠ No linked records found to test filtering');
-        }
-      } else {
-        console.log('⚠ No meetings found to test filtering');
-      }
-    });
+    expect(result.pagination.complete).toBe(true);
+    expect(result.pagination.next_cursor).toBeNull();
+    expect(result.pagination.items).toBe(result.data.length);
   });
 });

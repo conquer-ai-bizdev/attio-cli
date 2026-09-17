@@ -1,52 +1,38 @@
 # Authentication
 
-## Methods
+Every request uses `Authorization: Bearer <access_token>`.
 
-Attio supports two authentication approaches:
+## REST commands
 
-### 1. API Key (Recommended for CLI)
-- Best for single-workspace scenarios
-- Generated through developer settings page
-- Simpler setup for command-line tools
+REST commands resolve a token in this order:
 
-### 2. OAuth 2.0
-- Required for multi-workspace applications
-- Follows OAuth 2.0 specification
-- More complex but supports delegated access
+1. the global `--api-key` option;
+2. `ATTIO_API_KEY`;
+3. Vercel Connect.
 
-## Making Authenticated Requests
+Vercel Connect uses an app subject and the connector named by
+`ATTIO_REST_CONNECTOR`. Its default is
+`api.attio.com/attio-rest-files`. The CLI refreshes the Connect token and
+retries one time after a `401`.
 
-Include your token in the Authorization header:
+## Official MCP commands
 
-```
-Authorization: Bearer <access_token>
-```
+`attio mcp tools` and `attio mcp call` resolve a token in this order:
 
-Alternative: HTTP Basic Authentication (token as username, blank password)
+1. `ATTIO_MCP_TOKEN`;
+2. Vercel Connect.
 
-## Token Scopes
+Vercel Connect uses the connector named by `ATTIO_MCP_CONNECTOR`, with a user
+subject named by `ATTIO_MCP_SUBJECT`. The defaults are
+`mcp.attio.com/attio-mcp-eve-v3` and `crm-agent-eve`. The requested resource is
+`https://mcp.attio.com/mcp`, with `openid`, `offline_access`, and `mcp` scopes.
 
-Both API keys and OAuth tokens use scopes to control access:
+The CLI refreshes the Connect token and retries one time when it cannot create
+an MCP session.
 
-### Common Scopes
-- `record_permission:read` - Read records
-- `record_permission:read-write` - Create/update records
-- `object_configuration:read` - Read object definitions
-- `object_configuration:read-write` - Modify objects
-- `list_configuration:read` - Read list definitions
-- `list_configuration:read-write` - Modify lists
-- `list_entry:read` - Read list entries
-- `list_entry:read-write` - Create/update list entries
-- `user_management:read` - View workspace members
-- `user_management:read-write` - Manage workspace members
-- `note:read` - Read notes
-- `note:read-write` - Create/update notes
-- `webhook_configuration:read` - View webhooks
-- `webhook_configuration:read-write` - Manage webhooks
+## Runtime requirements
 
-## Environment Variable Configuration
-
-For CLI tools, store the API token in an environment variable:
-```bash
-export ATTIO_API_KEY="your_api_key_here"
-```
+Direct Connect resolution requires the OIDC identity of the consuming Vercel
+project. A deployed runtime MAY inject fresh `ATTIO_API_KEY` and
+`ATTIO_MCP_TOKEN` values into a bounded subprocess. Tokens MUST stay out of
+command arguments, logs, and committed files.

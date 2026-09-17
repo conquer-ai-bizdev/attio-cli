@@ -375,16 +375,11 @@ describe('Notes Integration Tests', () => {
         title: 'Updated Title',
       });
 
-      expect(result.newNote.title).toBe('Updated Title');
-      expect(result.newNote.content_plaintext).toBe('Original content');
-      expect(result.oldNoteId).toBe(originalNoteId);
-      expect(result.newNote.id.note_id).not.toBe(originalNoteId);
+      expect(result.title).toBe('Updated Title');
+      expect(result.content_plaintext).toBe('Original content');
+      expect(result.id.note_id).toBe(originalNoteId);
 
-      // Track the new note for cleanup
-      updateTestNoteId = result.newNote.id.note_id;
-
-      // Verify old note was deleted
-      await expect(noteApi.getNote(originalNoteId)).rejects.toThrow();
+      updateTestNoteId = result.id.note_id;
     });
 
     it('should update content only', async () => {
@@ -406,15 +401,11 @@ describe('Notes Integration Tests', () => {
         content: 'Updated content here',
       });
 
-      expect(result.newNote.title).toBe('Content Test Title');
-      expect(result.newNote.content_plaintext).toBe('Updated content here');
-      expect(result.oldNoteId).toBe(originalNoteId);
+      expect(result.title).toBe('Content Test Title');
+      expect(result.content_plaintext).toBe('Updated content here');
+      expect(result.id.note_id).toBe(originalNoteId);
 
-      // Track the new note for cleanup
-      updateTestNoteId = result.newNote.id.note_id;
-
-      // Verify old note was deleted
-      await expect(noteApi.getNote(originalNoteId)).rejects.toThrow();
+      updateTestNoteId = result.id.note_id;
     });
 
     it('should update both title and content', async () => {
@@ -437,15 +428,11 @@ describe('Notes Integration Tests', () => {
         content: 'Updated both content',
       });
 
-      expect(result.newNote.title).toBe('Updated Both Title');
-      expect(result.newNote.content_plaintext).toBe('Updated both content');
-      expect(result.oldNoteId).toBe(originalNoteId);
+      expect(result.title).toBe('Updated Both Title');
+      expect(result.content_plaintext).toBe('Updated both content');
+      expect(result.id.note_id).toBe(originalNoteId);
 
-      // Track the new note for cleanup
-      updateTestNoteId = result.newNote.id.note_id;
-
-      // Verify old note was deleted
-      await expect(noteApi.getNote(originalNoteId)).rejects.toThrow();
+      updateTestNoteId = result.id.note_id;
     });
 
     it('should throw error when note not found', async () => {

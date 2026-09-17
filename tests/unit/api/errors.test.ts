@@ -24,7 +24,9 @@ describe('errors', () => {
       expect(error.statusCode).toBe(500);
       expect(error.code).toBe('internal_error');
       expect(error.type).toBe('server_error');
-      expect(error.message).toBe('Something went wrong');
+      expect(error.apiMessage).toBe('Something went wrong');
+      expect(error.message).toContain('Attio request failed (500 internal_error).');
+      expect(error.message).toContain('Retryable: yes');
       expect(error.name).toBe('ApiError');
     });
   });
@@ -37,14 +39,15 @@ describe('errors', () => {
       expect(error).toBeInstanceOf(RateLimitError);
       expect(error.statusCode).toBe(429);
       expect(error.retryAfter).toBe(60);
-      expect(error.message).toBe('Rate limit exceeded');
+      expect(error.apiMessage).toBe('Rate limit exceeded');
+      expect(error.message).toContain('Retry after: 60 seconds');
     });
 
     it('should accept custom message', () => {
       const error = new RateLimitError(120, 'Too many requests');
 
       expect(error.retryAfter).toBe(120);
-      expect(error.message).toBe('Too many requests');
+      expect(error.apiMessage).toBe('Too many requests');
     });
   });
 
@@ -54,13 +57,14 @@ describe('errors', () => {
 
       expect(error).toBeInstanceOf(ApiError);
       expect(error.statusCode).toBe(404);
-      expect(error.message).toBe('Resource not found');
+      expect(error.apiMessage).toBe('Resource not found');
+      expect(error.message).toContain('Retryable: no');
     });
 
     it('should accept custom message', () => {
       const error = new NotFoundError('User not found');
 
-      expect(error.message).toBe('User not found');
+      expect(error.apiMessage).toBe('User not found');
     });
   });
 
@@ -84,7 +88,7 @@ describe('errors', () => {
 
       expect(error).toBeInstanceOf(ApiError);
       expect(error.statusCode).toBe(401);
-      expect(error.message).toBe('Authentication failed');
+      expect(error.apiMessage).toBe('Authentication failed');
     });
   });
 
@@ -94,7 +98,7 @@ describe('errors', () => {
 
       expect(error).toBeInstanceOf(ApiError);
       expect(error.statusCode).toBe(403);
-      expect(error.message).toBe('Access forbidden');
+      expect(error.apiMessage).toBe('Access forbidden');
     });
   });
 
@@ -124,7 +128,7 @@ describe('errors', () => {
       });
 
       expect(error).toBeInstanceOf(NotFoundError);
-      expect(error.message).toBe('Resource not found');
+      expect(error.apiMessage).toBe('Resource not found');
     });
 
     it('should parse authentication error', () => {
@@ -135,7 +139,7 @@ describe('errors', () => {
       });
 
       expect(error).toBeInstanceOf(AuthenticationError);
-      expect(error.message).toBe('Invalid API key');
+      expect(error.apiMessage).toBe('Invalid API key');
     });
 
     it('should parse authorization error', () => {
@@ -164,14 +168,69 @@ describe('errors', () => {
       const error = parseApiError(500, { message: 'Server error' });
 
       expect(error).toBeInstanceOf(ApiError);
-      expect(error.message).toBe('Server error');
+      expect(error.apiMessage).toBe('Server error');
     });
 
     it('should handle unknown error format', () => {
       const error = parseApiError(500, {});
 
       expect(error).toBeInstanceOf(ApiError);
-      expect(error.message).toBe('Unknown error');
+      expect(error.apiMessage).toBe('Unknown Attio error');
+    });
+
+    it('preserves operation, request id, validation details, and recovery guidance', () => {
+      const error = parseApiError(
+        400,
+        {
+          code: 'validation_type',
+          type: 'invalid_request_error',
+          message: 'Validation failed',
+          validation_errors: [
+            {
+              code: 'invalid_value',
+              path: ['data', 'values', 'stage'],
+              message: 'Unknown status',
+              expected: 'A valid status title or ID',
+              received: 'Made up',
+            },
+          ],
+        },
+        undefined,
+        {
+          method: 'PATCH',
+          path: '/objects/deals/records/abc',
+          requestId: 'req_123',
+          retryable: false,
+          attempts: 1,
+        }
+      );
+
+      expect(error.message).toContain(
+        'Attio rejected PATCH /objects/deals/records/abc (400 validation_type).'
+      );
+      expect(error.message).toContain('Field data.values.stage: Unknown status');
+      expect(error.message).toContain('Request ID: req_123');
+      expect(error.message).toContain('Retryable: no');
+      expect(error.toJSON()).toEqual(
+        expect.objectContaining({
+          status: 400,
+          code: 'validation_type',
+          category: 'input',
+          message: 'Validation failed',
+          operation: 'PATCH /objects/deals/records/abc',
+          request_id: 'req_123',
+          retryable: false,
+        })
+      );
+      expect(error.toJSON().validation_errors).toEqual([
+        {
+          code: 'invalid_value',
+          field: 'data.values.stage',
+          message: 'Unknown status',
+          expected: 'A valid status title or ID',
+          received: 'Made up',
+        },
+      ]);
     });
   });
 });

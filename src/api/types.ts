@@ -16,11 +16,14 @@ export function asSlug(value: string): Slug {
 // Common schemas
 export const TimestampSchema = z.string().datetime();
 
-export const CreatedBySchema = z.object({
-  type: z.enum(['workspace-member', 'system', 'api', 'api-token']),
-  workspace_member_id: z.string().optional(),
-  api_actor_id: z.string().optional(),
-});
+export const CreatedBySchema = z
+  .object({
+    type: z.enum(['workspace-member', 'system', 'api', 'api-token', 'app']),
+    id: z.string().nullable().optional(),
+    workspace_member_id: z.string().optional(),
+    api_actor_id: z.string().optional(),
+  })
+  .passthrough();
 
 // Workspace Member
 export const WorkspaceMemberIdSchema = z.object({
@@ -28,15 +31,17 @@ export const WorkspaceMemberIdSchema = z.object({
   workspace_member_id: z.string(),
 });
 
-export const WorkspaceMemberSchema = z.object({
-  id: WorkspaceMemberIdSchema,
-  first_name: z.string(),
-  last_name: z.string(),
-  email_address: z.string().email(),
-  avatar_url: z.string().nullable(),
-  access_level: z.enum(['admin', 'member', 'suspended']),
-  created_at: TimestampSchema,
-});
+export const WorkspaceMemberSchema = z
+  .object({
+    id: WorkspaceMemberIdSchema,
+    first_name: z.string(),
+    last_name: z.string(),
+    email_address: z.string().email(),
+    avatar_url: z.string().nullable(),
+    access_level: z.enum(['admin', 'member', 'suspended']),
+    created_at: TimestampSchema,
+  })
+  .passthrough();
 
 export type WorkspaceMember = z.infer<typeof WorkspaceMemberSchema>;
 
@@ -44,21 +49,35 @@ export const WorkspaceMembersResponseSchema = z.object({
   data: z.array(WorkspaceMemberSchema),
 });
 
+export const WorkspaceIdentitySchema = z
+  .object({
+    active: z.boolean(),
+    scope: z.string().optional(),
+    client_id: z.string().optional(),
+    aud: z.string().optional(),
+    authorized_by_workspace_member_id: z.string().optional(),
+  })
+  .passthrough();
+
+export type WorkspaceIdentity = z.infer<typeof WorkspaceIdentitySchema>;
+
 // Object
 export const ObjectIdSchema = z.object({
   workspace_id: z.string(),
   object_id: z.string(),
 });
 
-export const ObjectSchema = z.object({
-  id: ObjectIdSchema,
-  api_slug: z.string(),
-  singular_noun: z.string(),
-  plural_noun: z.string(),
-  created_at: TimestampSchema,
-  is_built_in: z.boolean().optional(),
-  is_workspace_level: z.boolean().optional(),
-});
+export const ObjectSchema = z
+  .object({
+    id: ObjectIdSchema,
+    api_slug: z.string(),
+    singular_noun: z.string(),
+    plural_noun: z.string(),
+    created_at: TimestampSchema,
+    is_built_in: z.boolean().optional(),
+    is_workspace_level: z.boolean().optional(),
+  })
+  .passthrough();
 
 export type ObjectType = z.infer<typeof ObjectSchema>;
 
@@ -101,20 +120,22 @@ export const AttributeConfigSchema = z.object({
   // Additional config fields vary by type
 });
 
-export const AttributeSchema = z.object({
-  id: AttributeIdSchema,
-  api_slug: z.string(),
-  title: z.string(),
-  description: z.string().nullable().optional(),
-  type: AttributeTypeSchema,
-  is_system_attribute: z.boolean(),
-  is_unique: z.boolean(),
-  is_required: z.boolean(),
-  is_multiselect: z.boolean(),
-  is_archived: z.boolean(),
-  config: AttributeConfigSchema.optional(),
-  created_at: TimestampSchema,
-});
+export const AttributeSchema = z
+  .object({
+    id: AttributeIdSchema,
+    api_slug: z.string(),
+    title: z.string(),
+    description: z.string().nullable().optional(),
+    type: AttributeTypeSchema,
+    is_system_attribute: z.boolean(),
+    is_unique: z.boolean(),
+    is_required: z.boolean(),
+    is_multiselect: z.boolean(),
+    is_archived: z.boolean(),
+    config: AttributeConfigSchema.optional(),
+    created_at: TimestampSchema,
+  })
+  .passthrough();
 
 export type Attribute = z.infer<typeof AttributeSchema>;
 
@@ -151,11 +172,13 @@ export const RecordIdSchema = z.object({
   record_id: z.string(),
 });
 
-export const RecordSchema = z.object({
-  id: RecordIdSchema,
-  values: z.record(z.unknown()), // Map of attribute slug to value
-  created_at: TimestampSchema,
-});
+export const RecordSchema = z
+  .object({
+    id: RecordIdSchema,
+    values: z.record(z.unknown()), // Map of attribute slug to value
+    created_at: TimestampSchema,
+  })
+  .passthrough();
 
 export type AttioRecord = z.infer<typeof RecordSchema>;
 
@@ -213,18 +236,20 @@ export const NoteIdSchema = z.object({
   note_id: z.string(),
 });
 
-export const NoteSchema = z.object({
-  id: NoteIdSchema,
-  title: z.string(),
-  content: z.string().optional(),
-  content_plaintext: z.string().optional(),
-  content_markdown: z.string().optional(),
-  format: z.enum(['plaintext', 'markdown', 'html']).optional(),
-  parent_object: z.string(),
-  parent_record_id: z.string(),
-  created_at: TimestampSchema,
-  created_by_actor: CreatedBySchema,
-});
+export const NoteSchema = z
+  .object({
+    id: NoteIdSchema,
+    title: z.string(),
+    content: z.string().optional(),
+    content_plaintext: z.string().optional(),
+    content_markdown: z.string().optional(),
+    format: z.enum(['plaintext', 'markdown', 'html']).optional(),
+    parent_object: z.string(),
+    parent_record_id: z.string(),
+    created_at: TimestampSchema,
+    created_by_actor: CreatedBySchema,
+  })
+  .passthrough();
 
 export type Note = z.infer<typeof NoteSchema>;
 
@@ -239,32 +264,34 @@ export const TaskIdSchema = z.object({
   task_id: z.string(),
 });
 
-export const TaskSchema = z.object({
-  id: TaskIdSchema,
-  content: z.string().optional(),
-  content_plaintext: z.string(),
-  deadline_at: TimestampSchema.nullable().optional(),
-  is_completed: z.boolean(),
-  completed_at: TimestampSchema.optional(),
-  linked_records: z
-    .array(
-      z.object({
-        target_object: z.string().optional(),
-        target_record_id: z.string().optional(),
-      })
-    )
-    .optional(),
-  assignees: z
-    .array(
-      z.object({
-        referenced_actor_type: z.string(),
-        referenced_actor_id: z.string(),
-      })
-    )
-    .optional(),
-  created_at: TimestampSchema,
-  created_by_actor: CreatedBySchema,
-});
+export const TaskSchema = z
+  .object({
+    id: TaskIdSchema,
+    content: z.string().optional(),
+    content_plaintext: z.string(),
+    deadline_at: TimestampSchema.nullable().optional(),
+    is_completed: z.boolean(),
+    completed_at: TimestampSchema.nullable().optional(),
+    linked_records: z
+      .array(
+        z.object({
+          target_object: z.string().optional(),
+          target_record_id: z.string().optional(),
+        })
+      )
+      .optional(),
+    assignees: z
+      .array(
+        z.object({
+          referenced_actor_type: z.string(),
+          referenced_actor_id: z.string(),
+        })
+      )
+      .optional(),
+    created_at: TimestampSchema,
+    created_by_actor: CreatedBySchema,
+  })
+  .passthrough();
 
 export type Task = z.infer<typeof TaskSchema>;
 
@@ -279,41 +306,238 @@ export const MeetingIdSchema = z.object({
   meeting_id: z.string(),
 });
 
-export const MeetingSchema = z.object({
-  id: MeetingIdSchema,
-  title: z.string(),
-  start_at: TimestampSchema.optional(),
-  end_at: TimestampSchema.optional(),
-  organizer: z
+export const MeetingTimeSchema = z.union([
+  z
     .object({
-      referenced_actor_type: z.string(),
-      referenced_actor_id: z.string(),
+      datetime: z.string(),
+      timezone: z.string().nullable(),
     })
-    .optional(),
-  attendees: z
-    .array(
-      z.object({
-        referenced_actor_type: z.string(),
-        referenced_actor_id: z.string(),
-      })
-    )
-    .optional(),
-  linked_records: z
-    .array(
-      z.object({
-        target_object: z.string().optional(),
-        target_record_id: z.string().optional(),
-      })
-    )
-    .optional(),
-  created_at: TimestampSchema,
-});
+    .passthrough(),
+  z.object({ date: z.string() }).passthrough(),
+]);
+
+export const MeetingSchema = z
+  .object({
+    id: MeetingIdSchema,
+    title: z.string(),
+    description: z.string(),
+    is_all_day: z.boolean(),
+    start: MeetingTimeSchema,
+    end: MeetingTimeSchema,
+    participants: z.array(
+      z
+        .object({
+          status: z.enum(['accepted', 'tentative', 'declined', 'pending']),
+          is_organizer: z.boolean(),
+          email_address: z.string().nullable(),
+          name: z.string().nullable(),
+        })
+        .passthrough()
+    ),
+    linked_records: z.array(
+      z
+        .object({
+          object_slug: z.string(),
+          object_id: z.string(),
+          record_id: z.string(),
+        })
+        .passthrough()
+    ),
+    created_at: TimestampSchema,
+    created_by_actor: CreatedBySchema,
+  })
+  .passthrough();
 
 export type Meeting = z.infer<typeof MeetingSchema>;
 
 export const MeetingsResponseSchema = z.object({
   data: z.array(MeetingSchema),
-  next_cursor: z.string().optional(),
+  pagination: z.object({
+    next_cursor: z.string().nullable(),
+  }),
+});
+
+// Call recordings
+export const TranscriptSegmentSchema = z
+  .object({
+    speech: z.string(),
+    start_time: z.number(),
+    end_time: z.number(),
+    speaker: z
+      .object({
+        name: z.string(),
+        email_address: z.string().optional(),
+      })
+      .passthrough(),
+  })
+  .passthrough();
+
+export const CallRecordingSummarySchema = z
+  .object({
+    id: z.object({
+      workspace_id: z.string(),
+      meeting_id: z.string(),
+      call_recording_id: z.string(),
+    }),
+    status: z.enum(['processing', 'completed', 'failed']),
+    web_url: z.string(),
+    created_by_actor: CreatedBySchema,
+    created_at: TimestampSchema,
+  })
+  .passthrough();
+
+export const CallRecordingSchema = CallRecordingSummarySchema.extend({
+  video_url: z.string().nullable(),
+  transcript: z
+    .object({
+      segments: z.array(TranscriptSegmentSchema),
+      raw_transcript: z.string(),
+    })
+    .passthrough()
+    .nullable(),
+}).passthrough();
+
+export type CallRecordingSummary = z.infer<typeof CallRecordingSummarySchema>;
+export type CallRecording = z.infer<typeof CallRecordingSchema>;
+
+export const CallRecordingsResponseSchema = z.object({
+  data: z.array(CallRecordingSummarySchema),
+  pagination: z.object({
+    next_cursor: z.string().nullable(),
+  }),
+});
+
+// Files and folders
+const FileEntryBaseSchema = z.object({
+  id: z.object({
+    workspace_id: z.string(),
+    file_id: z.string(),
+  }),
+  object_id: z.string(),
+  object_slug: z.string(),
+  record_id: z.string(),
+  storage_provider: z.enum([
+    'attio',
+    'dropbox',
+    'box',
+    'google-drive',
+    'microsoft-onedrive',
+  ]),
+  created_by_actor: CreatedBySchema,
+  created_at: TimestampSchema,
+});
+
+export const FileEntrySchema = z.discriminatedUnion('file_type', [
+  FileEntryBaseSchema.extend({
+    file_type: z.literal('file'),
+    name: z.string(),
+    content_type: z.string().nullable(),
+    content_size: z.number().nullable(),
+    parent_folder_id: z.string().nullable(),
+  }).passthrough(),
+  FileEntryBaseSchema.extend({
+    file_type: z.literal('folder'),
+    name: z.string(),
+    parent_folder_id: z.string().nullable(),
+  }).passthrough(),
+  FileEntryBaseSchema.extend({
+    file_type: z.literal('connected-file'),
+    external_provider_file_id: z.string(),
+    microsoft_drive_id: z.string().nullable(),
+  }).passthrough(),
+  FileEntryBaseSchema.extend({
+    file_type: z.literal('connected-folder'),
+    external_provider_file_id: z.string(),
+    microsoft_drive_id: z.string().nullable(),
+  }).passthrough(),
+]);
+
+export type FileEntry = z.infer<typeof FileEntrySchema>;
+
+export const FilesResponseSchema = z.object({
+  data: z.array(FileEntrySchema),
+  pagination: z.object({
+    next_cursor: z.string().nullable(),
+  }),
+});
+
+// Comments
+const CommentActorSchema = z
+  .object({
+    type: z.enum(['api-token', 'workspace-member', 'system', 'app']).nullable(),
+    id: z.string().nullable(),
+  })
+  .passthrough();
+
+export const CommentSchema = z
+  .object({
+    id: z.object({
+      workspace_id: z.string(),
+      comment_id: z.string(),
+    }),
+    thread_id: z.string(),
+    content_plaintext: z.string(),
+    entry: z
+      .object({
+        entry_id: z.string(),
+        list_id: z.string(),
+      })
+      .nullable(),
+    record: z
+      .object({
+        record_id: z.string(),
+        object_id: z.string(),
+      })
+      .nullable(),
+    resolved_at: TimestampSchema.nullable(),
+    resolved_by: CommentActorSchema.nullable(),
+    created_at: TimestampSchema,
+    author: CommentActorSchema,
+  })
+  .passthrough();
+
+export type Comment = z.infer<typeof CommentSchema>;
+
+// Email metadata (content is not available from the public REST endpoint)
+export const EmailSchema = z
+  .object({
+    id: z.object({
+      workspace_id: z.string(),
+      mailbox_id: z.string(),
+      email_id: z.string(),
+    }),
+    sent_at: z.string(),
+    direction: z.enum(['inbound', 'outbound']),
+    subject_line: z.string().nullable(),
+    participants: z.array(
+      z
+        .object({
+          role: z.enum(['from', 'reply-to', 'to', 'cc', 'bcc']),
+          email_address: z.string(),
+          email_domain: z.string(),
+          name: z.string().nullable(),
+        })
+        .passthrough()
+    ),
+    linked_records: z.array(
+      z
+        .object({
+          object_slug: z.string(),
+          object_id: z.string(),
+          record_id: z.string(),
+        })
+        .passthrough()
+    ),
+  })
+  .passthrough();
+
+export type Email = z.infer<typeof EmailSchema>;
+
+export const EmailsResponseSchema = z.object({
+  data: z.array(EmailSchema),
+  pagination: z.object({
+    next_cursor: z.string().nullable(),
+  }),
 });
 
 // Select Option
@@ -324,11 +548,13 @@ export const SelectOptionIdSchema = z.object({
   option_id: z.string(),
 });
 
-export const SelectOptionSchema = z.object({
-  id: SelectOptionIdSchema,
-  title: z.string(),
-  is_archived: z.boolean(),
-});
+export const SelectOptionSchema = z
+  .object({
+    id: SelectOptionIdSchema,
+    title: z.string(),
+    is_archived: z.boolean(),
+  })
+  .passthrough();
 
 export type SelectOption = z.infer<typeof SelectOptionSchema>;
 
@@ -344,13 +570,15 @@ export const StatusIdSchema = z.object({
   status_id: z.string(),
 });
 
-export const StatusSchema = z.object({
-  id: StatusIdSchema,
-  title: z.string(),
-  is_archived: z.boolean(),
-  celebration_enabled: z.boolean(),
-  target_time_in_status: z.string().nullable().optional(), // ISO-8601 duration
-});
+export const StatusSchema = z
+  .object({
+    id: StatusIdSchema,
+    title: z.string(),
+    is_archived: z.boolean(),
+    celebration_enabled: z.boolean(),
+    target_time_in_status: z.string().nullable().optional(), // ISO-8601 duration
+  })
+  .passthrough();
 
 export type Status = z.infer<typeof StatusSchema>;
 

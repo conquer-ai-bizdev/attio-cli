@@ -308,13 +308,14 @@ describe('types', () => {
           meeting_id: 'meeting-456',
         },
         title: 'Project Kickoff',
-        start_at: '2024-01-15T10:00:00Z',
-        end_at: '2024-01-15T11:00:00Z',
-        organizer: {
-          referenced_actor_type: 'workspace-member',
-          referenced_actor_id: 'member-123',
-        },
+        description: 'Initial project meeting',
+        is_all_day: false,
+        start: { datetime: '2024-01-15T10:00:00Z', timezone: 'UTC' },
+        end: { datetime: '2024-01-15T11:00:00Z', timezone: 'UTC' },
+        participants: [],
+        linked_records: [],
         created_at: '2024-01-01T00:00:00Z',
+        created_by_actor: { type: 'workspace-member', id: 'member-123' },
       };
 
       const result = MeetingSchema.parse(meeting);

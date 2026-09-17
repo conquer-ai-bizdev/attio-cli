@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import axios from 'axios';
 import { AttioClient } from '../../../src/api/client';
-import { RateLimitError, NotFoundError } from '../../../src/api/errors';
+import { ApiError, RateLimitError, NotFoundError } from '../../../src/api/errors';
 
 vi.mock('axios');
 
@@ -21,20 +21,22 @@ describe('AttioClient', () => {
       expect(mockCreate).toHaveBeenCalledWith({
         baseURL: 'https://api.attio.com/v2',
         headers: {
-          Authorization: 'Bearer test-api-key',
           'Content-Type': 'application/json',
         },
         timeout: 30000,
       });
     });
 
-    it('should use override API key if provided', () => {
-      const mockCreate = vi.mocked(axios.create);
-      mockCreate.mockReturnValue({} as never);
+    it('should use override API key when making a request', async () => {
+      const mockAxios = {
+        request: vi.fn().mockResolvedValue({ data: { id: '123' } }),
+      };
+      vi.mocked(axios.create).mockReturnValue(mockAxios as never);
 
-      new AttioClient('override-key');
+      const client = new AttioClient('override-key');
+      await client.get('/test');
 
-      expect(mockCreate).toHaveBeenCalledWith(
+      expect(mockAxios.request).toHaveBeenCalledWith(
         expect.objectContaining({
           headers: expect.objectContaining({
             Authorization: 'Bearer override-key',
@@ -58,6 +60,7 @@ describe('AttioClient', () => {
         method: 'GET',
         url: '/test',
         params: { limit: 10 },
+        headers: { Authorization: 'Bearer test-api-key' },
       });
       expect(result).toEqual({ id: '123' });
     });
@@ -77,6 +80,7 @@ describe('AttioClient', () => {
         method: 'POST',
         url: '/test',
         data: { name: 'John' },
+        headers: { Authorization: 'Bearer test-api-key' },
       });
       expect(result).toEqual({ id: '456' });
     });
@@ -94,6 +98,7 @@ describe('AttioClient', () => {
         method: 'PATCH',
         url: '/test',
         data: { name: 'Jane' },
+        headers: { Authorization: 'Bearer test-api-key' },
       });
     });
 
@@ -110,6 +115,7 @@ describe('AttioClient', () => {
         method: 'PUT',
         url: '/test',
         data: { name: 'Jane' },
+        headers: { Authorization: 'Bearer test-api-key' },
       });
     });
 
@@ -125,6 +131,7 @@ describe('AttioClient', () => {
       expect(mockAxios.request).toHaveBeenCalledWith({
         method: 'DELETE',
         url: '/test',
+        headers: { Authorization: 'Bearer test-api-key' },
       });
     });
   });
@@ -208,6 +215,66 @@ describe('AttioClient', () => {
       expect(mockAxios.request).toHaveBeenCalledTimes(4); // initial + 3 retries
 
       vi.useRealTimers();
+    });
+
+    it('should not automatically retry a rate-limited write', async () => {
+      const mockAxios = {
+        request: vi.fn().mockRejectedValue({
+          isAxiosError: true,
+          response: {
+            status: 429,
+            headers: { 'retry-after': '12' },
+            data: {
+              error: {
+                code: 'rate_limit_exceeded',
+                message: 'Slow down',
+              },
+            },
+          },
+        }),
+      };
+      vi.mocked(axios.create).mockReturnValue(mockAxios as never);
+      vi.mocked(axios.isAxiosError).mockReturnValue(true);
+
+      const client = new AttioClient();
+      const error = await client
+        .post('/objects/companies/records', { data: { values: {} } })
+        .catch((caught) => caught as RateLimitError);
+
+      expect(error).toBeInstanceOf(RateLimitError);
+      expect(error.retryable).toBe(false);
+      expect(error.retryAfter).toBe(12);
+      expect(error.message).toContain(
+        'Read back the target before retrying because the write outcome may be unknown.'
+      );
+      expect(mockAxios.request).toHaveBeenCalledTimes(1);
+    });
+
+    it('should preserve network failure operation context', async () => {
+      const mockAxios = {
+        request: vi.fn().mockRejectedValue({
+          isAxiosError: true,
+          code: 'ECONNRESET',
+          message: 'socket hang up',
+        }),
+      };
+      vi.mocked(axios.create).mockReturnValue(mockAxios as never);
+      vi.mocked(axios.isAxiosError).mockReturnValue(true);
+
+      const client = new AttioClient();
+      const error = await client
+        .get('/objects/companies/records/abc')
+        .catch((caught) => caught as ApiError);
+
+      expect(error).toBeInstanceOf(ApiError);
+      expect(error.category).toBe('network');
+      expect(error.toJSON()).toEqual(
+        expect.objectContaining({
+          code: 'ECONNRESET',
+          operation: 'GET /objects/companies/records/abc',
+          retryable: true,
+        })
+      );
     });
   });
 });
