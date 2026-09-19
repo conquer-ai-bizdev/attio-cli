@@ -58,6 +58,7 @@ export function createRecordCommand(): Command {
       '--filter <json>',
       'Filter query as JSON (e.g., \'{"email_addresses":{"email_address":{"$contains":"@example.com"}}}\')'
     )
+    .option('--view <view-id>', 'Apply the filters from a saved Attio view')
     .option(
       '--sort <json>',
       'Sort specification as JSON (e.g., \'[{"attribute":"name","direction":"asc"}]\')'
@@ -66,6 +67,9 @@ export function createRecordCommand(): Command {
       try {
         if (options.all && options.offset !== undefined) {
           throw new Error('Cannot combine --all with --offset.');
+        }
+        if (options.filter && options.view) {
+          throw new Error('Cannot combine --filter with --view.');
         }
         requireAtMostOneStdin([
           { name: '--filter', value: options.filter },
@@ -102,6 +106,7 @@ export function createRecordCommand(): Command {
           limit: options.limit,
           offset: options.offset,
           filter: filter,
+          filter_view_id: options.view,
           sorts: sorts,
         };
         const result = options.all

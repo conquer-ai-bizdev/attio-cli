@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.StatusesResponseSchema = exports.StatusSchema = exports.StatusIdSchema = exports.SelectOptionsResponseSchema = exports.SelectOptionSchema = exports.SelectOptionIdSchema = exports.EmailsResponseSchema = exports.EmailSchema = exports.CommentSchema = exports.FilesResponseSchema = exports.FileEntrySchema = exports.CallRecordingsResponseSchema = exports.CallRecordingSchema = exports.CallRecordingSummarySchema = exports.TranscriptSegmentSchema = exports.MeetingsResponseSchema = exports.MeetingSchema = exports.MeetingTimeSchema = exports.MeetingIdSchema = exports.TasksResponseSchema = exports.TaskSchema = exports.TaskIdSchema = exports.NotesResponseSchema = exports.NoteSchema = exports.NoteIdSchema = exports.ListEntriesResponseSchema = exports.ListEntrySchema = exports.ListEntryIdSchema = exports.ListsResponseSchema = exports.ListSchema = exports.ListIdSchema = exports.RecordsResponseSchema = exports.RecordSchema = exports.RecordIdSchema = exports.AttributeValueHistorySchema = exports.AttributeValueSchema = exports.AttributesResponseSchema = exports.AttributeSchema = exports.AttributeConfigSchema = exports.AttributeIdSchema = exports.AttributeTypeSchema = exports.ObjectsResponseSchema = exports.ObjectSchema = exports.ObjectIdSchema = exports.WorkspaceIdentitySchema = exports.WorkspaceMembersResponseSchema = exports.WorkspaceMemberSchema = exports.WorkspaceMemberIdSchema = exports.CreatedBySchema = exports.TimestampSchema = void 0;
+exports.SelectOptionsResponseSchema = exports.SelectOptionSchema = exports.SelectOptionIdSchema = exports.EmailsResponseSchema = exports.EmailSchema = exports.CommentSchema = exports.FilesResponseSchema = exports.FileEntrySchema = exports.CallRecordingsResponseSchema = exports.CallRecordingSchema = exports.CallRecordingSummarySchema = exports.TranscriptSegmentSchema = exports.MeetingsResponseSchema = exports.MeetingSchema = exports.MeetingTimeSchema = exports.MeetingIdSchema = exports.TasksResponseSchema = exports.TaskSchema = exports.TaskIdSchema = exports.NotesResponseSchema = exports.NoteSchema = exports.NoteIdSchema = exports.ListEntriesResponseSchema = exports.ListEntrySchema = exports.ListEntryIdSchema = exports.ListsResponseSchema = exports.ListSchema = exports.ListIdSchema = exports.RecordsResponseSchema = exports.RecordSchema = exports.RecordIdSchema = exports.AttributeValueHistorySchema = exports.AttributeValueSchema = exports.AttributesResponseSchema = exports.AttributeSchema = exports.AttributeConfigSchema = exports.AttributeIdSchema = exports.AttributeTypeSchema = exports.ObjectViewsResponseSchema = exports.ObjectViewSchema = exports.ObjectViewIdSchema = exports.ObjectsResponseSchema = exports.ObjectSchema = exports.ObjectIdSchema = exports.WorkspaceIdentitySchema = exports.WorkspaceMembersResponseSchema = exports.WorkspaceMemberSchema = exports.WorkspaceMemberIdSchema = exports.CreatedBySchema = exports.TimestampSchema = void 0;
+exports.StatusesResponseSchema = exports.StatusSchema = exports.StatusIdSchema = void 0;
 exports.asUUID = asUUID;
 exports.asSlug = asSlug;
 const zod_1 = require("zod");
@@ -67,6 +68,24 @@ exports.ObjectSchema = zod_1.z
     .passthrough();
 exports.ObjectsResponseSchema = zod_1.z.object({
     data: zod_1.z.array(exports.ObjectSchema),
+});
+exports.ObjectViewIdSchema = zod_1.z.object({
+    workspace_id: zod_1.z.string(),
+    object_id: zod_1.z.string(),
+    view_id: zod_1.z.string(),
+});
+exports.ObjectViewSchema = zod_1.z
+    .object({
+    id: exports.ObjectViewIdSchema,
+    title: zod_1.z.string(),
+    created_at: exports.TimestampSchema,
+})
+    .passthrough();
+exports.ObjectViewsResponseSchema = zod_1.z.object({
+    data: zod_1.z.array(exports.ObjectViewSchema),
+    pagination: zod_1.z.object({
+        next_cursor: zod_1.z.string().nullable(),
+    }),
 });
 // Attribute Types
 exports.AttributeTypeSchema = zod_1.z.enum([

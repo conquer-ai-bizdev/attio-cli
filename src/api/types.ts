@@ -85,6 +85,29 @@ export const ObjectsResponseSchema = z.object({
   data: z.array(ObjectSchema),
 });
 
+export const ObjectViewIdSchema = z.object({
+  workspace_id: z.string(),
+  object_id: z.string(),
+  view_id: z.string(),
+});
+
+export const ObjectViewSchema = z
+  .object({
+    id: ObjectViewIdSchema,
+    title: z.string(),
+    created_at: TimestampSchema,
+  })
+  .passthrough();
+
+export type ObjectView = z.infer<typeof ObjectViewSchema>;
+
+export const ObjectViewsResponseSchema = z.object({
+  data: z.array(ObjectViewSchema),
+  pagination: z.object({
+    next_cursor: z.string().nullable(),
+  }),
+});
+
 // Attribute Types
 export const AttributeTypeSchema = z.enum([
   'text',

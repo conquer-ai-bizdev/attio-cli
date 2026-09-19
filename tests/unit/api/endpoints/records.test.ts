@@ -82,6 +82,27 @@ describe('RecordEndpoints.mergeRecords', () => {
 });
 
 describe('RecordEndpoints.listAllRecords', () => {
+  it('passes a saved view ID to the Attio record query', async () => {
+    const mockClient = {
+      post: vi.fn().mockResolvedValue({ data: [] }),
+    } as unknown as AttioClient;
+    const records = new RecordEndpoints(mockClient);
+
+    await records.listRecordsPage('companies', {
+      limit: 50,
+      filter_view_id: '34d434b3-b743-4167-88d1-7650ce543d6b',
+    });
+
+    expect(mockClient.post).toHaveBeenCalledWith(
+      '/objects/companies/records/query',
+      {
+        limit: 50,
+        offset: 0,
+        filter_view_id: '34d434b3-b743-4167-88d1-7650ce543d6b',
+      }
+    );
+  });
+
   it('continues until a short page proves the inventory is complete', async () => {
     const mockClient = {
       post: vi

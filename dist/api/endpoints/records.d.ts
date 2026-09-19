@@ -4,6 +4,7 @@ export interface ListRecordsOptions {
     limit?: number;
     offset?: number;
     filter?: Record<string, unknown>;
+    filter_view_id?: string;
     sorts?: Array<{
         attribute: string;
         direction: 'asc' | 'desc';

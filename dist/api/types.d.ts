@@ -354,6 +354,169 @@ export declare const ObjectsResponseSchema: z.ZodObject<{
         is_workspace_level: z.ZodOptional<z.ZodBoolean>;
     }, z.ZodTypeAny, "passthrough">[];
 }>;
+export declare const ObjectViewIdSchema: z.ZodObject<{
+    workspace_id: z.ZodString;
+    object_id: z.ZodString;
+    view_id: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    workspace_id: string;
+    object_id: string;
+    view_id: string;
+}, {
+    workspace_id: string;
+    object_id: string;
+    view_id: string;
+}>;
+export declare const ObjectViewSchema: z.ZodObject<{
+    id: z.ZodObject<{
+        workspace_id: z.ZodString;
+        object_id: z.ZodString;
+        view_id: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        workspace_id: string;
+        object_id: string;
+        view_id: string;
+    }, {
+        workspace_id: string;
+        object_id: string;
+        view_id: string;
+    }>;
+    title: z.ZodString;
+    created_at: z.ZodString;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    id: z.ZodObject<{
+        workspace_id: z.ZodString;
+        object_id: z.ZodString;
+        view_id: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        workspace_id: string;
+        object_id: string;
+        view_id: string;
+    }, {
+        workspace_id: string;
+        object_id: string;
+        view_id: string;
+    }>;
+    title: z.ZodString;
+    created_at: z.ZodString;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    id: z.ZodObject<{
+        workspace_id: z.ZodString;
+        object_id: z.ZodString;
+        view_id: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        workspace_id: string;
+        object_id: string;
+        view_id: string;
+    }, {
+        workspace_id: string;
+        object_id: string;
+        view_id: string;
+    }>;
+    title: z.ZodString;
+    created_at: z.ZodString;
+}, z.ZodTypeAny, "passthrough">>;
+export type ObjectView = z.infer<typeof ObjectViewSchema>;
+export declare const ObjectViewsResponseSchema: z.ZodObject<{
+    data: z.ZodArray<z.ZodObject<{
+        id: z.ZodObject<{
+            workspace_id: z.ZodString;
+            object_id: z.ZodString;
+            view_id: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            workspace_id: string;
+            object_id: string;
+            view_id: string;
+        }, {
+            workspace_id: string;
+            object_id: string;
+            view_id: string;
+        }>;
+        title: z.ZodString;
+        created_at: z.ZodString;
+    }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+        id: z.ZodObject<{
+            workspace_id: z.ZodString;
+            object_id: z.ZodString;
+            view_id: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            workspace_id: string;
+            object_id: string;
+            view_id: string;
+        }, {
+            workspace_id: string;
+            object_id: string;
+            view_id: string;
+        }>;
+        title: z.ZodString;
+        created_at: z.ZodString;
+    }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+        id: z.ZodObject<{
+            workspace_id: z.ZodString;
+            object_id: z.ZodString;
+            view_id: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            workspace_id: string;
+            object_id: string;
+            view_id: string;
+        }, {
+            workspace_id: string;
+            object_id: string;
+            view_id: string;
+        }>;
+        title: z.ZodString;
+        created_at: z.ZodString;
+    }, z.ZodTypeAny, "passthrough">>, "many">;
+    pagination: z.ZodObject<{
+        next_cursor: z.ZodNullable<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        next_cursor: string | null;
+    }, {
+        next_cursor: string | null;
+    }>;
+}, "strip", z.ZodTypeAny, {
+    data: z.objectOutputType<{
+        id: z.ZodObject<{
+            workspace_id: z.ZodString;
+            object_id: z.ZodString;
+            view_id: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            workspace_id: string;
+            object_id: string;
+            view_id: string;
+        }, {
+            workspace_id: string;
+            object_id: string;
+            view_id: string;
+        }>;
+        title: z.ZodString;
+        created_at: z.ZodString;
+    }, z.ZodTypeAny, "passthrough">[];
+    pagination: {
+        next_cursor: string | null;
+    };
+}, {
+    data: z.objectInputType<{
+        id: z.ZodObject<{
+            workspace_id: z.ZodString;
+            object_id: z.ZodString;
+            view_id: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            workspace_id: string;
+            object_id: string;
+            view_id: string;
+        }, {
+            workspace_id: string;
+            object_id: string;
+            view_id: string;
+        }>;
+        title: z.ZodString;
+        created_at: z.ZodString;
+    }, z.ZodTypeAny, "passthrough">[];
+    pagination: {
+        next_cursor: string | null;
+    };
+}>;
 export declare const AttributeTypeSchema: z.ZodEnum<["text", "number", "checkbox", "date", "timestamp", "currency", "select", "multiselect", "status", "rating", "email-address", "phone-number", "domain", "location", "interaction", "actor-reference", "record-reference", "personal-name"]>;
 export declare const AttributeIdSchema: z.ZodObject<{
     workspace_id: z.ZodString;

@@ -7,6 +7,7 @@ export interface ListRecordsOptions {
   limit?: number;
   offset?: number;
   filter?: Record<string, unknown>;
+  filter_view_id?: string;
   sorts?: Array<{ attribute: string; direction: 'asc' | 'desc' }>;
 }
 
@@ -57,7 +58,13 @@ export class RecordEndpoints {
     const offset = options.offset ?? 0;
     validateOffsetPage(limit, offset, 'Record');
     const body: Record<string, unknown> = { limit, offset };
+    if (options.filter !== undefined && options.filter_view_id !== undefined) {
+      throw new Error('Cannot combine a record filter with a saved view.');
+    }
     if (options.filter !== undefined) body.filter = options.filter;
+    if (options.filter_view_id !== undefined) {
+      body.filter_view_id = options.filter_view_id;
+    }
     if (options.sorts !== undefined) body.sorts = options.sorts;
 
     const response = await this.client.post(

@@ -52,6 +52,40 @@ export function createObjectCommand(): Command {
       }
     });
 
+  object
+    .command('views')
+    .description('List saved views for an object')
+    .argument('<object>', 'Object slug or ID (e.g., companies)')
+    .option('--show-archived', 'Include archived views')
+    .option('--limit <number>', 'Views per page, from 1 to 1000', parseInt)
+    .option('--cursor <cursor>', 'Continue from a previous next_cursor')
+    .option('--all', 'Follow cursors until every view is returned')
+    .action(async (objectSlug: string, options) => {
+      try {
+        if (options.all && options.cursor) {
+          throw new Error('Cannot combine --all with --cursor.');
+        }
+        const client = new AttioClient(options.apiKey);
+        const objectApi = new ObjectEndpoints(client);
+        const request = {
+          show_archived: options.showArchived,
+          limit: options.limit,
+          cursor: options.cursor,
+        };
+        const result = options.all
+          ? await objectApi.listAllViews(objectSlug, request)
+          : await objectApi.listViewsPage(objectSlug, request);
+
+        console.log(formatJson(result));
+      } catch (error) {
+        if (error instanceof Error) {
+          console.error(`Error: ${error.message}`);
+          process.exit(1);
+        }
+        throw error;
+      }
+    });
+
   // List attributes
   object
     .command('attributes')
