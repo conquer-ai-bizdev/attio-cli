@@ -39,6 +39,12 @@ program.addCommand((0, call_recording_1.createCallRecordingCommand)());
 program.addCommand((0, file_1.createFileCommand)());
 program.addCommand((0, comment_1.createCommentCommand)());
 program.addCommand((0, report_1.createReportCommand)());
+function rejectUnexpectedArguments(command) {
+    command.allowExcessArguments(false);
+    for (const child of command.commands)
+        rejectUnexpectedArguments(child);
+}
+rejectUnexpectedArguments(program);
 program.addHelpText('afterAll', `
 Write input:
   Pass JSON or text as the final positional argument, or omit it to read stdin.

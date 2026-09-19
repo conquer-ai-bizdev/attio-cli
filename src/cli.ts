@@ -46,6 +46,13 @@ program.addCommand(createFileCommand());
 program.addCommand(createCommentCommand());
 program.addCommand(createReportCommand());
 
+function rejectUnexpectedArguments(command: Command): void {
+  command.allowExcessArguments(false);
+  for (const child of command.commands) rejectUnexpectedArguments(child);
+}
+
+rejectUnexpectedArguments(program);
+
 program.addHelpText(
   'afterAll',
   `
