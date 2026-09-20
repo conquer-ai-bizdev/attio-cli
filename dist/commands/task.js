@@ -5,6 +5,7 @@ const commander_1 = require("commander");
 const client_1 = require("../api/client");
 const tasks_1 = require("../api/endpoints/tasks");
 const json_1 = require("../formatters/json");
+const resource_1 = require("../formatters/resource");
 const stdin_1 = require("../utils/stdin");
 function createTaskCommand() {
     const task = new commander_1.Command('task').description('Manage tasks');
@@ -46,7 +47,7 @@ function createTaskCommand() {
             const result = options.all
                 ? await taskApi.listAllTasks(request)
                 : await taskApi.listTasksPage(request);
-            console.log((0, json_1.formatJson)(result));
+            console.log((0, json_1.formatJson)((0, resource_1.formatCollection)(result, resource_1.formatTask)));
         }
         catch (error) {
             if (error instanceof Error) {
@@ -66,7 +67,7 @@ function createTaskCommand() {
             const client = new client_1.AttioClient(options.apiKey);
             const taskApi = new tasks_1.TaskEndpoints(client);
             const t = await taskApi.getTask(taskId);
-            console.log((0, json_1.formatJson)(t));
+            console.log((0, json_1.formatJson)((0, resource_1.formatTask)(t)));
         }
         catch (error) {
             if (error instanceof Error) {
@@ -117,7 +118,7 @@ function createTaskCommand() {
                 },
             };
             const t = await taskApi.createTask(data);
-            console.log((0, json_1.formatJson)(t));
+            console.log((0, json_1.formatJson)((0, resource_1.formatTask)(t)));
         }
         catch (error) {
             if (error instanceof Error) {
@@ -155,7 +156,7 @@ function createTaskCommand() {
             if (options.open)
                 data.data.is_completed = false;
             const t = await taskApi.updateTask(taskId, data);
-            console.log((0, json_1.formatJson)(t));
+            console.log((0, json_1.formatJson)((0, resource_1.formatTask)(t)));
         }
         catch (error) {
             if (error instanceof Error) {

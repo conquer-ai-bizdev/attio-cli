@@ -163,16 +163,18 @@ function createRecordCommand() {
         try {
             const client = new client_1.AttioClient(options.apiKey);
             const recordApi = new records_1.RecordEndpoints(client);
-            const data = await (0, stdin_1.readJsonInput)(json, 'Record values');
+            const input = await (0, stdin_1.readJsonInput)(json, 'Record values');
+            const data = (0, record_1.normalizeRecordWriteValues)(input);
             const created = await (0, connected_service_1.callAttio)('create-record', {
                 object: objectSlug,
-                values: data,
+                values: data.values,
             });
             const recordId = recordIdFrom(created);
             if (!recordId) {
                 throw new Error('Attio created the record without returning its ID.');
             }
             const rec = await recordApi.getRecord(objectSlug, recordId);
+            (0, record_1.assertRequestedCurrencies)(rec, data.requestedCurrencies);
             // Apply compact formatting unless verbose mode is enabled
             const displayRecord = (0, record_1.formatRecord)(rec);
             console.log((0, json_1.formatJson)(displayRecord));
@@ -197,14 +199,16 @@ function createRecordCommand() {
         try {
             const client = new client_1.AttioClient(options.apiKey);
             const recordApi = new records_1.RecordEndpoints(client);
-            const data = await (0, stdin_1.readJsonInput)(json, 'Updated record values');
+            const input = await (0, stdin_1.readJsonInput)(json, 'Updated record values');
+            const data = (0, record_1.normalizeRecordWriteValues)(input);
             await (0, connected_service_1.callAttio)('update-record', {
                 object: objectSlug,
                 record_id: recordId,
-                values: data,
+                values: data.values,
                 patch_multiselect_values: !options.replace,
             });
             const rec = await recordApi.getRecord(objectSlug, recordId);
+            (0, record_1.assertRequestedCurrencies)(rec, data.requestedCurrencies);
             // Apply compact formatting unless verbose mode is enabled
             const displayRecord = (0, record_1.formatRecord)(rec);
             console.log((0, json_1.formatJson)(displayRecord));

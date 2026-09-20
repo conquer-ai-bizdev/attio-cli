@@ -5,6 +5,7 @@ const commander_1 = require("commander");
 const client_1 = require("../api/client");
 const notes_1 = require("../api/endpoints/notes");
 const json_1 = require("../formatters/json");
+const resource_1 = require("../formatters/resource");
 const connected_service_1 = require("../api/connected-service");
 const time_window_1 = require("../utils/time-window");
 const page_limit_1 = require("../utils/page-limit");
@@ -102,7 +103,7 @@ function createNoteCommand() {
             const result = options.all
                 ? await noteApi.listAllNotes(request)
                 : await noteApi.listNotesPage(request);
-            console.log((0, json_1.formatJson)(result));
+            console.log((0, json_1.formatJson)((0, resource_1.formatCollection)(result, resource_1.formatNote)));
         }
         catch (error) {
             if (error instanceof Error) {
@@ -122,7 +123,7 @@ function createNoteCommand() {
             const client = new client_1.AttioClient(options.apiKey);
             const noteApi = new notes_1.NoteEndpoints(client);
             const n = await noteApi.getNote(noteId);
-            console.log((0, json_1.formatJson)(n));
+            console.log((0, json_1.formatJson)((0, resource_1.formatNote)(n)));
         }
         catch (error) {
             if (error instanceof Error) {
@@ -159,7 +160,7 @@ function createNoteCommand() {
                 },
             };
             const n = await noteApi.createNote(data);
-            console.log((0, json_1.formatJson)(n));
+            console.log((0, json_1.formatJson)((0, resource_1.formatNote)(n)));
         }
         catch (error) {
             if (error instanceof Error) {
@@ -214,7 +215,7 @@ function createNoteCommand() {
                 updates.format = options.markdown ? 'markdown' : 'plaintext';
             }
             const updated = await noteApi.updateNote(noteId, updates);
-            console.log((0, json_1.formatJson)(updated));
+            console.log((0, json_1.formatJson)((0, resource_1.formatNote)(updated)));
         }
         catch (error) {
             if (error instanceof Error) {

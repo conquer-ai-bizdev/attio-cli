@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import { AttioClient } from '../api/client';
 import { TaskEndpoints } from '../api/endpoints/tasks';
 import { formatJson } from '../formatters/json';
+import { formatCollection, formatTask } from '../formatters/resource';
 import { readInput } from '../utils/stdin';
 
 export function createTaskCommand(): Command {
@@ -47,7 +48,7 @@ export function createTaskCommand(): Command {
         const result = options.all
           ? await taskApi.listAllTasks(request)
           : await taskApi.listTasksPage(request);
-        console.log(formatJson(result));
+        console.log(formatJson(formatCollection(result, formatTask)));
       } catch (error) {
         if (error instanceof Error) {
           console.error(`Error: ${error.message}`);
@@ -69,7 +70,7 @@ export function createTaskCommand(): Command {
 
         const t = await taskApi.getTask(taskId);
 
-        console.log(formatJson(t));
+        console.log(formatJson(formatTask(t)));
       } catch (error) {
         if (error instanceof Error) {
           console.error(`Error: ${error.message}`);
@@ -125,7 +126,7 @@ export function createTaskCommand(): Command {
 
         const t = await taskApi.createTask(data);
 
-        console.log(formatJson(t));
+        console.log(formatJson(formatTask(t)));
       } catch (error) {
         if (error instanceof Error) {
           console.error(`Error: ${error.message}`);
@@ -166,7 +167,7 @@ export function createTaskCommand(): Command {
 
         const t = await taskApi.updateTask(taskId, data);
 
-        console.log(formatJson(t));
+        console.log(formatJson(formatTask(t)));
       } catch (error) {
         if (error instanceof Error) {
           console.error(`Error: ${error.message}`);

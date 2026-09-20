@@ -3,9 +3,11 @@ import { AttioClient } from '../api/client';
 import { RecordEndpoints } from '../api/endpoints/records';
 import { formatJson } from '../formatters/json';
 import {
+  assertRequestedCurrencies,
   formatRecord,
   formatRecords,
   formatRecordSearchResponse,
+  normalizeRecordWriteValues,
 } from '../formatters/record';
 import { validateFilterStructure } from '../utils/filter-validator';
 import { callAttio } from '../api/connected-service';
@@ -198,16 +200,18 @@ export function createRecordCommand(): Command {
         const client = new AttioClient(options.apiKey);
         const recordApi = new RecordEndpoints(client);
 
-        const data = await readJsonInput(json, 'Record values');
+        const input = await readJsonInput(json, 'Record values');
+        const data = normalizeRecordWriteValues(input);
         const created = await callAttio('create-record', {
           object: objectSlug,
-          values: data,
+          values: data.values,
         });
         const recordId = recordIdFrom(created);
         if (!recordId) {
           throw new Error('Attio created the record without returning its ID.');
         }
         const rec = await recordApi.getRecord(objectSlug, recordId);
+        assertRequestedCurrencies(rec, data.requestedCurrencies);
 
         // Apply compact formatting unless verbose mode is enabled
         const displayRecord = formatRecord(rec);
@@ -244,14 +248,16 @@ export function createRecordCommand(): Command {
           const client = new AttioClient(options.apiKey);
           const recordApi = new RecordEndpoints(client);
 
-          const data = await readJsonInput(json, 'Updated record values');
+          const input = await readJsonInput(json, 'Updated record values');
+          const data = normalizeRecordWriteValues(input);
           await callAttio('update-record', {
             object: objectSlug,
             record_id: recordId,
-            values: data,
+            values: data.values,
             patch_multiselect_values: !options.replace,
           });
           const rec = await recordApi.getRecord(objectSlug, recordId);
+          assertRequestedCurrencies(rec, data.requestedCurrencies);
 
           // Apply compact formatting unless verbose mode is enabled
           const displayRecord = formatRecord(rec);

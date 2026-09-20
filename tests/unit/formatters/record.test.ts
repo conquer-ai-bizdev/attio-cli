@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  assertRequestedCurrencies,
   formatRecord,
   formatRecordSearchResponse,
+  normalizeRecordWriteValues,
 } from '../../../src/formatters/record';
 
 describe('record formatters', () => {
@@ -59,5 +61,27 @@ describe('record formatters', () => {
         },
       ],
     });
+  });
+});
+
+describe('record write formatting', () => {
+  it('accepts the output-shaped currency value', () => {
+    expect(
+      normalizeRecordWriteValues({
+        value: { value: 180000, currency_code: 'USD' },
+      })
+    ).toEqual({
+      values: { value: { currency_value: 180000 } },
+      requestedCurrencies: { value: 'USD' },
+    });
+  });
+
+  it('rejects a stored currency that differs from the request', () => {
+    expect(() =>
+      assertRequestedCurrencies(
+        { values: { value: [{ currency_code: 'GBP' }] } },
+        { value: 'USD' }
+      )
+    ).toThrow('Attio stored currency GBP');
   });
 });

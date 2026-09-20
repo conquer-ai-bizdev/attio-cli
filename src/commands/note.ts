@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import { AttioClient } from '../api/client';
 import { NoteEndpoints } from '../api/endpoints/notes';
 import { formatJson } from '../formatters/json';
+import { formatCollection, formatNote } from '../formatters/resource';
 import { callAttio } from '../api/connected-service';
 import { attioExclusiveLowerBound } from '../utils/time-window';
 import { requirePageLimit } from '../utils/page-limit';
@@ -119,7 +120,7 @@ export function createNoteCommand(): Command {
         const result = options.all
           ? await noteApi.listAllNotes(request)
           : await noteApi.listNotesPage(request);
-        console.log(formatJson(result));
+        console.log(formatJson(formatCollection(result, formatNote)));
       } catch (error) {
         if (error instanceof Error) {
           console.error(`Error: ${error.message}`);
@@ -141,7 +142,7 @@ export function createNoteCommand(): Command {
 
         const n = await noteApi.getNote(noteId);
 
-        console.log(formatJson(n));
+        console.log(formatJson(formatNote(n)));
       } catch (error) {
         if (error instanceof Error) {
           console.error(`Error: ${error.message}`);
@@ -188,7 +189,7 @@ export function createNoteCommand(): Command {
 
           const n = await noteApi.createNote(data);
 
-          console.log(formatJson(n));
+          console.log(formatJson(formatNote(n)));
         } catch (error) {
           if (error instanceof Error) {
             console.error(`Error: ${error.message}`);
@@ -258,7 +259,7 @@ export function createNoteCommand(): Command {
 
         const updated = await noteApi.updateNote(noteId, updates);
 
-        console.log(formatJson(updated));
+        console.log(formatJson(formatNote(updated)));
       } catch (error) {
         if (error instanceof Error) {
           console.error(`Error: ${error.message}`);

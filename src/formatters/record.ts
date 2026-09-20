@@ -1,5 +1,10 @@
 type JsonObject = Record<string, unknown>;
 
+export interface NormalizedRecordWrite {
+  values: unknown;
+  requestedCurrencies: Record<string, string>;
+}
+
 function isObject(value: unknown): value is JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -90,4 +95,59 @@ export function formatRecordSearchResponse(response: unknown): unknown {
       return { ...result, values };
     }),
   };
+}
+
+export function normalizeRecordWriteValues(
+  values: unknown
+): NormalizedRecordWrite {
+  if (!isObject(values)) return { values, requestedCurrencies: {} };
+
+  const requestedCurrencies: Record<string, string> = {};
+  const normalized = Object.fromEntries(
+    Object.entries(values).map(([slug, value]) => {
+      if (!isObject(value)) return [slug, value];
+
+      const amount =
+        typeof value.currency_value === 'number'
+          ? value.currency_value
+          : typeof value.value === 'number'
+            ? value.value
+            : undefined;
+      const currency =
+        typeof value.currency_code === 'string'
+          ? value.currency_code
+          : undefined;
+
+      if (amount === undefined || currency === undefined) return [slug, value];
+      requestedCurrencies[slug] = currency;
+      return [slug, { currency_value: amount }];
+    })
+  );
+
+  return { values: normalized, requestedCurrencies };
+}
+
+export function assertRequestedCurrencies(
+  record: unknown,
+  requestedCurrencies: Record<string, string>
+): void {
+  if (Object.keys(requestedCurrencies).length === 0) return;
+  if (!isObject(record) || !isObject(record.values)) {
+    throw new Error(
+      'Attio did not return record values for currency validation.'
+    );
+  }
+
+  for (const [slug, expected] of Object.entries(requestedCurrencies)) {
+    const entries = record.values[slug];
+    const actual =
+      Array.isArray(entries) && isObject(entries[0])
+        ? entries[0].currency_code
+        : undefined;
+    if (actual !== expected) {
+      throw new Error(
+        `Attio stored currency ${String(actual)} for field "${slug}", but the input requested ${expected}.`
+      );
+    }
+  }
 }
