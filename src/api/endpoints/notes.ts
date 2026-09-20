@@ -1,6 +1,7 @@
 import { AttioClient } from '../client';
 import { NotesResponseSchema, NoteSchema, Note } from '../types';
 import { validate } from '../../utils/validation';
+import { markdownLinesMatch } from '../../utils/markdown';
 
 /**
  * Convert a simple glob pattern to a RegExp
@@ -126,6 +127,34 @@ export class NoteEndpoints {
     const response = await this.client.post('/notes', data);
     const dataResponse = response as { data: unknown };
     return validate(NoteSchema, dataResponse.data);
+  }
+
+  async createVerifiedNote(data: CreateNoteData): Promise<Note> {
+    const note = await this.createNote(data);
+    if (data.data.format !== 'markdown') return note;
+
+    const stored = note.content_markdown;
+    if (
+      typeof stored === 'string' &&
+      markdownLinesMatch(data.data.content, stored)
+    ) {
+      return note;
+    }
+
+    try {
+      await this.deleteNote(note.id.note_id);
+    } catch (cleanupError) {
+      const detail =
+        cleanupError instanceof Error
+          ? cleanupError.message
+          : String(cleanupError);
+      throw new Error(
+        `Attio changed the Markdown note content, and cleanup of note ${note.id.note_id} failed: ${detail}`
+      );
+    }
+    throw new Error(
+      'Attio changed the Markdown note content. The incomplete note was removed.'
+    );
   }
 
   async deleteNote(noteId: string): Promise<void> {

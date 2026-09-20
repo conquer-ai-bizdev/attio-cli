@@ -159,7 +159,7 @@ function createNoteCommand() {
                     meeting_id: options.meeting || null,
                 },
             };
-            const n = await noteApi.createNote(data);
+            const n = await noteApi.createVerifiedNote(data);
             console.log((0, json_1.formatJson)((0, resource_1.formatNote)(n)));
         }
         catch (error) {

@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.NoteEndpoints = void 0;
 const types_1 = require("../types");
 const validation_1 = require("../../utils/validation");
+const markdown_1 = require("../../utils/markdown");
 /**
  * Convert a simple glob pattern to a RegExp
  * Supports: * (any chars) and ? (single char)
@@ -82,6 +83,26 @@ class NoteEndpoints {
         const response = await this.client.post('/notes', data);
         const dataResponse = response;
         return (0, validation_1.validate)(types_1.NoteSchema, dataResponse.data);
+    }
+    async createVerifiedNote(data) {
+        const note = await this.createNote(data);
+        if (data.data.format !== 'markdown')
+            return note;
+        const stored = note.content_markdown;
+        if (typeof stored === 'string' &&
+            (0, markdown_1.markdownLinesMatch)(data.data.content, stored)) {
+            return note;
+        }
+        try {
+            await this.deleteNote(note.id.note_id);
+        }
+        catch (cleanupError) {
+            const detail = cleanupError instanceof Error
+                ? cleanupError.message
+                : String(cleanupError);
+            throw new Error(`Attio changed the Markdown note content, and cleanup of note ${note.id.note_id} failed: ${detail}`);
+        }
+        throw new Error('Attio changed the Markdown note content. The incomplete note was removed.');
     }
     async deleteNote(noteId) {
         await this.client.delete(`/notes/${noteId}`);

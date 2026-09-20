@@ -57,4 +57,56 @@ describe('NoteEndpoints', () => {
 
     expect(client.delete).toHaveBeenCalledWith(`/notes/${note.id.note_id}`);
   });
+
+  it('accepts Attio Markdown whitespace normalization', async () => {
+    const client = {
+      post: vi.fn().mockResolvedValue({
+        data: {
+          ...note,
+          content_markdown: '## Heading\nText\n- item',
+        },
+      }),
+      delete: vi.fn(),
+    } as unknown as AttioClient;
+    const notes = new NoteEndpoints(client);
+
+    const result = await notes.createVerifiedNote({
+      data: {
+        parent_object: note.parent_object,
+        parent_record_id: note.parent_record_id,
+        title: note.title,
+        format: 'markdown',
+        content: '## Heading\n\nText  \n\n- item\n',
+      },
+    });
+
+    expect(result.id.note_id).toBe(note.id.note_id);
+    expect(client.delete).not.toHaveBeenCalled();
+  });
+
+  it('removes a newly created note when Attio changes Markdown content', async () => {
+    const client = {
+      post: vi.fn().mockResolvedValue({
+        data: {
+          ...note,
+          content_markdown: 'different content',
+        },
+      }),
+      delete: vi.fn().mockResolvedValue({}),
+    } as unknown as AttioClient;
+    const notes = new NoteEndpoints(client);
+
+    await expect(
+      notes.createVerifiedNote({
+        data: {
+          parent_object: note.parent_object,
+          parent_record_id: note.parent_record_id,
+          title: note.title,
+          format: 'markdown',
+          content: 'requested content',
+        },
+      })
+    ).rejects.toThrow('The incomplete note was removed');
+    expect(client.delete).toHaveBeenCalledWith(`/notes/${note.id.note_id}`);
+  });
 });

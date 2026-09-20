@@ -187,7 +187,7 @@ export function createNoteCommand(): Command {
             },
           };
 
-          const n = await noteApi.createNote(data);
+          const n = await noteApi.createVerifiedNote(data);
 
           console.log(formatJson(formatNote(n)));
         } catch (error) {

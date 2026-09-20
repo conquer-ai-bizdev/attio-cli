@@ -44,6 +44,7 @@ export declare class NoteEndpoints {
     listAllNotes(options?: Omit<ListNotesOptions, 'offset'>): Promise<CompleteNoteInventory>;
     getNote(noteId: string): Promise<Note>;
     createNote(data: CreateNoteData): Promise<Note>;
+    createVerifiedNote(data: CreateNoteData): Promise<Note>;
     deleteNote(noteId: string): Promise<void>;
     updateNote(noteId: string, updates: {
         title?: string;
