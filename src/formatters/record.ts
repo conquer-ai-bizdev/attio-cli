@@ -67,3 +67,27 @@ export function formatRecord(record: unknown): unknown {
 export function formatRecords(records: unknown[]): unknown[] {
   return records.map(formatRecord);
 }
+
+export function formatRecordSearchResponse(response: unknown): unknown {
+  if (!isObject(response) || !Array.isArray(response.results)) return response;
+  const results = response.results as unknown[];
+
+  return {
+    ...response,
+    results: results.map((result) => {
+      if (!isObject(result) || !isObject(result.attributes)) return result;
+
+      const values = Object.fromEntries(
+        Object.entries(result.attributes).map(([slug, attribute]) => [
+          slug,
+          (Array.isArray(attribute)
+            ? (attribute as unknown[])
+            : [attribute]
+          ).map((value) => ({ value })),
+        ])
+      );
+
+      return { ...result, values };
+    }),
+  };
+}

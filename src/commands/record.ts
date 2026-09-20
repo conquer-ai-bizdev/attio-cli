@@ -2,7 +2,11 @@ import { Command } from 'commander';
 import { AttioClient } from '../api/client';
 import { RecordEndpoints } from '../api/endpoints/records';
 import { formatJson } from '../formatters/json';
-import { formatRecord, formatRecords } from '../formatters/record';
+import {
+  formatRecord,
+  formatRecords,
+  formatRecordSearchResponse,
+} from '../formatters/record';
 import { validateFilterStructure } from '../utils/filter-validator';
 import { callAttio } from '../api/connected-service';
 import { requirePageLimit } from '../utils/page-limit';
@@ -25,19 +29,16 @@ export function createRecordCommand(): Command {
     .action(async (objectSlug: string, query: string, options) => {
       try {
         requirePageLimit(options.limit, 10, 'Record search');
-        console.log(
-          formatJson(
-            await callAttio(
-              'search-records',
-              compact({
-                object: objectSlug,
-                query,
-                limit: options.limit,
-                offset: options.offset,
-              })
-            )
-          )
+        const result = await callAttio(
+          'search-records',
+          compact({
+            object: objectSlug,
+            query,
+            limit: options.limit,
+            offset: options.offset,
+          })
         );
+        console.log(formatJson(formatRecordSearchResponse(result)));
       } catch (error) {
         if (error instanceof Error) {
           console.error(`Error: ${error.message}`);
@@ -365,7 +366,7 @@ export function createRecordCommand(): Command {
           const rec = await recordApi.getRecord(objectSlug, recordId);
 
           // Apply compact formatting unless verbose mode is enabled
-          const displayRecord = rec;
+          const displayRecord = formatRecord(rec);
 
           console.log(formatJson(displayRecord));
         } catch (error) {

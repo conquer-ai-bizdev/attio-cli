@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.formatRecord = formatRecord;
 exports.formatRecords = formatRecords;
+exports.formatRecordSearchResponse = formatRecordSearchResponse;
 function isObject(value) {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -57,5 +58,24 @@ function formatRecord(record) {
 }
 function formatRecords(records) {
     return records.map(formatRecord);
+}
+function formatRecordSearchResponse(response) {
+    if (!isObject(response) || !Array.isArray(response.results))
+        return response;
+    const results = response.results;
+    return {
+        ...response,
+        results: results.map((result) => {
+            if (!isObject(result) || !isObject(result.attributes))
+                return result;
+            const values = Object.fromEntries(Object.entries(result.attributes).map(([slug, attribute]) => [
+                slug,
+                (Array.isArray(attribute)
+                    ? attribute
+                    : [attribute]).map((value) => ({ value })),
+            ]));
+            return { ...result, values };
+        }),
+    };
 }
 //# sourceMappingURL=record.js.map

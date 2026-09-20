@@ -22,12 +22,13 @@ function createRecordCommand() {
         .action(async (objectSlug, query, options) => {
         try {
             (0, page_limit_1.requirePageLimit)(options.limit, 10, 'Record search');
-            console.log((0, json_1.formatJson)(await (0, connected_service_1.callAttio)('search-records', compact({
+            const result = await (0, connected_service_1.callAttio)('search-records', compact({
                 object: objectSlug,
                 query,
                 limit: options.limit,
                 offset: options.offset,
-            }))));
+            }));
+            console.log((0, json_1.formatJson)((0, record_1.formatRecordSearchResponse)(result)));
         }
         catch (error) {
             if (error instanceof Error) {
@@ -290,7 +291,7 @@ function createRecordCommand() {
             }
             const rec = await recordApi.getRecord(objectSlug, recordId);
             // Apply compact formatting unless verbose mode is enabled
-            const displayRecord = rec;
+            const displayRecord = (0, record_1.formatRecord)(rec);
             console.log((0, json_1.formatJson)(displayRecord));
         }
         catch (error) {
