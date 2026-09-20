@@ -32,7 +32,7 @@ function createEmailCommand() {
             const result = options.all
                 ? await listAllEmails(request)
                 : await (0, connected_service_1.callAttio)('search-emails-by-metadata', request);
-            printCollection(result);
+            printCollection(normalizeEmailPage(result));
         }
         catch (error) {
             fail(error);
@@ -101,6 +101,29 @@ async function listAllEmails(request) {
         cursor = page.has_more && page.next_cursor ? page.next_cursor : undefined;
     } while (cursor);
     return { emails, has_more: false, next_cursor: null };
+}
+function normalizeEmailPage(result) {
+    if (!result || typeof result !== 'object')
+        return result;
+    const page = result;
+    if (!Array.isArray(page.emails))
+        return result;
+    return {
+        ...page,
+        emails: page.emails.map(normalizeEmailMetadata),
+    };
+}
+function normalizeEmailMetadata(value) {
+    if (!value || typeof value !== 'object')
+        return value;
+    const email = value;
+    const { subject_line, sender, recipients, ...rest } = email;
+    return {
+        ...rest,
+        subject: email.subject ?? subject_line ?? null,
+        from: email.from ?? sender ?? null,
+        to: email.to ?? recipients ?? [],
+    };
 }
 function printCollection(result) {
     console.log((0, json_1.formatJson)(result));

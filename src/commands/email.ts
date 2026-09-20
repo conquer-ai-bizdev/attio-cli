@@ -42,7 +42,7 @@ export function createEmailCommand(): Command {
         const result = options.all
           ? await listAllEmails(request)
           : await callAttio('search-emails-by-metadata', request);
-        printCollection(result);
+        printCollection(normalizeEmailPage(result));
       } catch (error) {
         fail(error);
       }
@@ -133,6 +133,30 @@ async function listAllEmails(
     cursor = page.has_more && page.next_cursor ? page.next_cursor : undefined;
   } while (cursor);
   return { emails, has_more: false, next_cursor: null };
+}
+
+function normalizeEmailPage(result: unknown): unknown {
+  if (!result || typeof result !== 'object') return result;
+  const page = result as EmailPage & Record<string, unknown>;
+  if (!Array.isArray(page.emails)) return result;
+
+  return {
+    ...page,
+    emails: page.emails.map(normalizeEmailMetadata),
+  };
+}
+
+function normalizeEmailMetadata(value: unknown): unknown {
+  if (!value || typeof value !== 'object') return value;
+  const email = value as Record<string, unknown>;
+  const { subject_line, sender, recipients, ...rest } = email;
+
+  return {
+    ...rest,
+    subject: email.subject ?? subject_line ?? null,
+    from: email.from ?? sender ?? null,
+    to: email.to ?? recipients ?? [],
+  };
 }
 
 function printCollection(result: unknown): void {
