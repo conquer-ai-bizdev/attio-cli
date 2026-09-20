@@ -7,6 +7,7 @@ export interface ListRecordsOptions {
     filter_view_id?: string;
     sorts?: Array<{
         attribute: string;
+        field?: string;
         direction: 'asc' | 'desc';
     }>;
 }
