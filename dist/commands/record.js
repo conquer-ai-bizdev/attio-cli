@@ -5,6 +5,7 @@ const commander_1 = require("commander");
 const client_1 = require("../api/client");
 const records_1 = require("../api/endpoints/records");
 const json_1 = require("../formatters/json");
+const record_1 = require("../formatters/record");
 const filter_validator_1 = require("../utils/filter-validator");
 const connected_service_1 = require("../api/connected-service");
 const page_limit_1 = require("../utils/page-limit");
@@ -89,7 +90,7 @@ function createRecordCommand() {
                 ? await recordApi.listAllRecords(objectSlug, request)
                 : await recordApi.listRecordsPage(objectSlug, request);
             // Apply compact formatting unless verbose mode is enabled
-            const displayRecords = result.data;
+            const displayRecords = (0, record_1.formatRecords)(result.data);
             console.log((0, json_1.formatJson)({ data: displayRecords, pagination: result.pagination }));
         }
         catch (error) {
@@ -112,7 +113,7 @@ function createRecordCommand() {
             const recordApi = new records_1.RecordEndpoints(client);
             const rec = await recordApi.getRecord(objectSlug, recordId);
             // Apply compact formatting unless verbose mode is enabled
-            const displayRecord = rec;
+            const displayRecord = (0, record_1.formatRecord)(rec);
             console.log((0, json_1.formatJson)(displayRecord));
         }
         catch (error) {
@@ -134,7 +135,7 @@ function createRecordCommand() {
             const client = new client_1.AttioClient(options.apiKey);
             const recordApi = new records_1.RecordEndpoints(client);
             const records = await recordApi.getRecordsByIds(objectSlug, recordIds);
-            const displayRecords = records;
+            const displayRecords = (0, record_1.formatRecords)(records);
             const foundIds = new Set(records.map((record) => record.id.record_id));
             console.log((0, json_1.formatJson)({
                 records: displayRecords,
@@ -172,7 +173,7 @@ function createRecordCommand() {
             }
             const rec = await recordApi.getRecord(objectSlug, recordId);
             // Apply compact formatting unless verbose mode is enabled
-            const displayRecord = rec;
+            const displayRecord = (0, record_1.formatRecord)(rec);
             console.log((0, json_1.formatJson)(displayRecord));
         }
         catch (error) {
@@ -204,7 +205,7 @@ function createRecordCommand() {
             });
             const rec = await recordApi.getRecord(objectSlug, recordId);
             // Apply compact formatting unless verbose mode is enabled
-            const displayRecord = rec;
+            const displayRecord = (0, record_1.formatRecord)(rec);
             console.log((0, json_1.formatJson)(displayRecord));
         }
         catch (error) {
