@@ -8,7 +8,11 @@ export interface ListRecordsOptions {
   offset?: number;
   filter?: Record<string, unknown>;
   filter_view_id?: string;
-  sorts?: Array<{ attribute: string; direction: 'asc' | 'desc' }>;
+  sorts?: Array<{
+    attribute: string;
+    field?: string;
+    direction: 'asc' | 'desc';
+  }>;
 }
 
 export interface RecordPage {
@@ -65,7 +69,13 @@ export class RecordEndpoints {
     if (options.filter_view_id !== undefined) {
       body.filter_view_id = options.filter_view_id;
     }
-    if (options.sorts !== undefined) body.sorts = options.sorts;
+    if (options.sorts !== undefined) {
+      body.sorts = options.sorts.map((sort) =>
+        sort.attribute === 'last_interaction' && sort.field === undefined
+          ? { ...sort, field: 'interacted_at' }
+          : sort
+      );
+    }
 
     const response = await this.client.post(
       `/objects/${objectSlug}/records/query`,

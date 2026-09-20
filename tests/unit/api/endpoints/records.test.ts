@@ -82,6 +82,32 @@ describe('RecordEndpoints.mergeRecords', () => {
 });
 
 describe('RecordEndpoints.listAllRecords', () => {
+  it('adds the required interacted_at field when sorting last_interaction', async () => {
+    const mockClient = {
+      post: vi.fn().mockResolvedValue({ data: [] }),
+    } as unknown as AttioClient;
+    const records = new RecordEndpoints(mockClient);
+
+    await records.listRecordsPage('companies', {
+      sorts: [{ attribute: 'last_interaction', direction: 'desc' }],
+    });
+
+    expect(mockClient.post).toHaveBeenCalledWith(
+      '/objects/companies/records/query',
+      {
+        limit: 50,
+        offset: 0,
+        sorts: [
+          {
+            attribute: 'last_interaction',
+            field: 'interacted_at',
+            direction: 'desc',
+          },
+        ],
+      }
+    );
+  });
+
   it('passes a saved view ID to the Attio record query', async () => {
     const mockClient = {
       post: vi.fn().mockResolvedValue({ data: [] }),
