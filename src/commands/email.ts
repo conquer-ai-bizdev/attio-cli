@@ -21,7 +21,10 @@ export function createEmailCommand(): Command {
   email
     .command('list')
     .description('List email metadata')
-    .option('--company <record-id>', "Emails matching this Company's domains")
+    .option(
+      '--company <record-id>',
+      "Emails matching this Company's domains and linked people"
+    )
     .option('--participant <addresses...>', 'External participant addresses')
     .option('--domain <domain>', 'External participant domain')
     .option('--from <timestamp>', 'Inclusive interval start')
@@ -58,11 +61,20 @@ export function createEmailCommand(): Command {
               'Company email lists are complete by default and do not accept --cursor.'
             );
           }
-          const domains = await getCompanyDomains(String(options.company));
+          const sources = await getCompanyEmailSources(String(options.company));
 
           const pages = [];
-          for (const domain of domains) {
+          for (const domain of sources.domains) {
             const request = emailSearchArgs({ ...options, domain });
+            pages.push(await listAllEmails(request));
+          }
+          for (
+            let offset = 0;
+            offset < sources.participants.length;
+            offset += 10
+          ) {
+            const participant = sources.participants.slice(offset, offset + 10);
+            const request = emailSearchArgs({ ...options, participant });
             pages.push(await listAllEmails(request));
           }
           printCollection(
@@ -194,11 +206,12 @@ function normalizeEmailMetadata(value: unknown): unknown {
   };
 }
 
-async function getCompanyDomains(companyId: string): Promise<string[]> {
-  const company = await new RecordEndpoints(new AttioClient()).getRecord(
-    'companies',
-    companyId
-  );
+async function getCompanyEmailSources(companyId: string): Promise<{
+  domains: string[];
+  participants: string[];
+}> {
+  const records = new RecordEndpoints(new AttioClient());
+  const company = await records.getRecord('companies', companyId);
   const values = Array.isArray(company.values.domains)
     ? company.values.domains
     : [];
@@ -214,12 +227,41 @@ async function getCompanyDomains(companyId: string): Promise<string[]> {
     if (domain) domains.add(domain.trim().toLowerCase());
   }
 
-  if (domains.size === 0) {
+  const teamValues = Array.isArray(company.values.team)
+    ? company.values.team
+    : [];
+  const teamIds = teamValues.flatMap((value) => {
+    if (!value || typeof value !== 'object') return [];
+    const id = (value as Record<string, unknown>).target_record_id;
+    return typeof id === 'string' ? [id] : [];
+  });
+  const people = await records.getRecordsByIds('people', teamIds);
+  const participants = new Set<string>();
+
+  for (const person of people) {
+    const emailValues = Array.isArray(person.values.email_addresses)
+      ? person.values.email_addresses
+      : [];
+    for (const value of emailValues) {
+      if (!value || typeof value !== 'object') continue;
+      const item = value as Record<string, unknown>;
+      const address = [item.email_address, item.value].find(
+        (candidate): candidate is string =>
+          typeof candidate === 'string' && candidate.includes('@')
+      );
+      if (!address) continue;
+      const normalized = address.trim().toLowerCase();
+      const domain = normalized.split('@')[1];
+      if (!domains.has(domain)) participants.add(normalized);
+    }
+  }
+
+  if (domains.size === 0 && participants.size === 0) {
     throw new Error(
-      `Company ${companyId} has no domain, so its emails cannot be selected reliably.`
+      `Company ${companyId} has no domains or linked-person email addresses.`
     );
   }
-  return [...domains];
+  return { domains: [...domains], participants: [...participants] };
 }
 
 function combineEmailPages(pages: unknown[]): McpEmailPage {
