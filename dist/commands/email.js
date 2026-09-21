@@ -2,9 +2,10 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createEmailCommand = createEmailCommand;
 const commander_1 = require("commander");
+const node_crypto_1 = require("node:crypto");
 const client_1 = require("../api/client");
 const connected_service_1 = require("../api/connected-service");
-const emails_1 = require("../api/endpoints/emails");
+const records_1 = require("../api/endpoints/records");
 const json_1 = require("../formatters/json");
 const page_limit_1 = require("../utils/page-limit");
 const time_window_1 = require("../utils/time-window");
@@ -13,7 +14,7 @@ function createEmailCommand() {
     email
         .command('list')
         .description('List email metadata')
-        .option('--company <record-id>', "Emails Attio associates with this Company record")
+        .option('--company <record-id>', "Emails matching this Company's domains")
         .option('--participant <addresses...>', 'External participant addresses')
         .option('--domain <domain>', 'External participant domain')
         .option('--from <timestamp>', 'Inclusive interval start')
@@ -22,6 +23,7 @@ function createEmailCommand() {
         .option('--limit <number>', 'Page size, maximum 50', parseInt)
         .option('--cursor <cursor>', 'Continue from this cursor')
         .option('--all', 'Fetch every page')
+        .option('--full', 'Include the complete body of every returned email')
         .action(async (options) => {
         try {
             if (options.all && options.cursor) {
@@ -36,23 +38,28 @@ function createEmailCommand() {
                 throw new Error('Use either --domain or --participant, not both.');
             }
             if (options.company) {
-                const emailApi = new emails_1.EmailEndpoints(new client_1.AttioClient());
-                const request = linkedCompanyEmailArgs(options);
-                const result = options.all
-                    ? await emailApi.listAllEmails(request)
-                    : await emailApi.listEmailsPage(request);
-                printCollection({
-                    emails: result.data.map(normalizeLinkedEmailMetadata),
-                    has_more: 'nextCursor' in result && result.nextCursor !== null,
-                    next_cursor: 'nextCursor' in result ? result.nextCursor : null,
-                });
+                const domains = await getCompanyDomains(String(options.company));
+                if (domains.length > 1 && !options.all) {
+                    throw new Error('This company has multiple domains. Use --all to combine them completely.');
+                }
+                if (options.cursor && domains.length > 1) {
+                    throw new Error('A cursor cannot span multiple company domains. Use --all.');
+                }
+                const pages = [];
+                for (const domain of domains) {
+                    const request = emailSearchArgs({ ...options, domain });
+                    pages.push(options.all
+                        ? await listAllEmails(request)
+                        : await (0, connected_service_1.callAttio)('search-emails-by-metadata', request));
+                }
+                printCollection(await finalizeEmailPage(combineEmailPages(pages), options.full));
                 return;
             }
             const request = emailSearchArgs(options);
             const result = options.all
                 ? await listAllEmails(request)
                 : await (0, connected_service_1.callAttio)('search-emails-by-metadata', request);
-            printCollection(normalizeEmailPage(result));
+            printCollection(await finalizeEmailPage(result, options.full));
         }
         catch (error) {
             fail(error);
@@ -113,14 +120,16 @@ function emailSearchArgs(options) {
     });
 }
 async function listAllEmails(request) {
-    const emails = [];
+    const emails = new Map();
     let cursor;
     do {
         const page = (await (0, connected_service_1.callAttio)('search-emails-by-metadata', compact({ limit: 50, ...request, cursor })));
-        emails.push(...(Array.isArray(page.emails) ? page.emails : []));
+        for (const email of Array.isArray(page.emails) ? page.emails : []) {
+            emails.set(emailIdentity(email), email);
+        }
         cursor = page.has_more && page.next_cursor ? page.next_cursor : undefined;
     } while (cursor);
-    return { emails, has_more: false, next_cursor: null };
+    return { emails: [...emails.values()], has_more: false, next_cursor: null };
 }
 function normalizeEmailPage(result) {
     if (!result || typeof result !== 'object')
@@ -131,37 +140,6 @@ function normalizeEmailPage(result) {
     return {
         ...page,
         emails: page.emails.map(normalizeEmailMetadata),
-    };
-}
-function linkedCompanyEmailArgs(options) {
-    return {
-        linkedObject: 'companies',
-        linkedRecordIds: [String(options.company)],
-        sentAfter: typeof options.from === 'string'
-            ? (0, time_window_1.attioExclusiveLowerBound)(options.from)
-            : undefined,
-        sentBefore: typeof options.before === 'string' ? options.before : undefined,
-        excludeAutomatedParticipants: options.excludeAutomatedParticipants === true ? true : undefined,
-        limit: typeof options.limit === 'number' ? options.limit : undefined,
-        cursor: typeof options.cursor === 'string' ? options.cursor : undefined,
-    };
-}
-function normalizeLinkedEmailMetadata(email) {
-    const addresses = (role) => email.participants
-        .filter((participant) => participant.role === role)
-        .map((participant) => participant.email_address);
-    return {
-        mailbox_id: email.id.mailbox_id,
-        email_id: email.id.email_id,
-        sent_at: email.sent_at,
-        direction: email.direction,
-        subject: email.subject_line,
-        from: addresses('from')[0] ?? null,
-        to: addresses('to'),
-        cc: addresses('cc'),
-        bcc: addresses('bcc'),
-        participants: email.participants,
-        linked_records: email.linked_records,
     };
 }
 function normalizeEmailMetadata(value) {
@@ -175,6 +153,126 @@ function normalizeEmailMetadata(value) {
         from: email.from ?? sender ?? null,
         to: email.to ?? recipients ?? [],
     };
+}
+async function getCompanyDomains(companyId) {
+    const company = await new records_1.RecordEndpoints(new client_1.AttioClient()).getRecord('companies', companyId);
+    const values = Array.isArray(company.values.domains)
+        ? company.values.domains
+        : [];
+    const domains = new Set();
+    for (const value of values) {
+        if (!value || typeof value !== 'object')
+            continue;
+        const item = value;
+        const domain = [item.root_domain, item.domain, item.value].find((candidate) => typeof candidate === 'string' && candidate.trim().length > 0);
+        if (domain)
+            domains.add(domain.trim().toLowerCase());
+    }
+    if (domains.size === 0) {
+        throw new Error(`Company ${companyId} has no domain, so its emails cannot be selected reliably.`);
+    }
+    return [...domains];
+}
+function combineEmailPages(pages) {
+    const emails = new Map();
+    let hasMore = false;
+    let nextCursor = null;
+    for (const value of pages) {
+        if (!value || typeof value !== 'object')
+            continue;
+        const page = value;
+        for (const email of Array.isArray(page.emails) ? page.emails : []) {
+            emails.set(emailIdentity(email), email);
+        }
+        hasMore ||= page.has_more === true;
+        nextCursor ??= page.next_cursor ?? null;
+    }
+    return {
+        emails: [...emails.values()],
+        has_more: hasMore,
+        next_cursor: nextCursor,
+    };
+}
+async function finalizeEmailPage(result, includeContent) {
+    const normalized = normalizeEmailPage(result);
+    if (!normalized || typeof normalized !== 'object')
+        return normalized;
+    const page = normalized;
+    if (!Array.isArray(page.emails))
+        return normalized;
+    let emails = deduplicateExactEmails(page.emails);
+    if (includeContent) {
+        emails = await includeEmailContent(emails);
+        emails = deduplicateLogicalEmails(emails);
+    }
+    emails.sort(compareEmailsNewestFirst);
+    return { ...page, emails };
+}
+function deduplicateExactEmails(emails) {
+    return [
+        ...new Map(emails.map((email) => [emailIdentity(email), email])).values(),
+    ];
+}
+async function includeEmailContent(emails) {
+    const expanded = [];
+    const concurrency = 6;
+    for (let offset = 0; offset < emails.length; offset += concurrency) {
+        const batch = emails.slice(offset, offset + concurrency);
+        expanded.push(...(await Promise.all(batch.map(async (value) => {
+            if (!value || typeof value !== 'object')
+                return value;
+            const email = value;
+            const mailboxId = String(email.mailbox_id ?? '');
+            const emailId = String(email.email_id ?? '');
+            if (!mailboxId || !emailId) {
+                throw new Error('Attio returned an email without mailbox_id and email_id.');
+            }
+            const content = await (0, connected_service_1.callAttio)('get-email-content', {
+                mailbox_id: mailboxId,
+                email_id: emailId,
+            });
+            return { ...email, content };
+        }))));
+    }
+    return expanded;
+}
+function deduplicateLogicalEmails(emails) {
+    const unique = new Map();
+    for (const email of emails) {
+        unique.set(emailFingerprint(email), email);
+    }
+    return [...unique.values()];
+}
+function emailIdentity(value) {
+    if (!value || typeof value !== 'object')
+        return JSON.stringify(value);
+    const email = value;
+    return `${String(email.mailbox_id ?? '')}:${String(email.email_id ?? '')}`;
+}
+function emailFingerprint(value) {
+    if (!value || typeof value !== 'object')
+        return emailIdentity(value);
+    const email = value;
+    const participants = [email.from, email.to, email.cc, email.bcc]
+        .flatMap((item) => (Array.isArray(item) ? item : [item]))
+        .filter((item) => typeof item === 'string')
+        .map((item) => item.trim().toLowerCase())
+        .sort();
+    const evidence = JSON.stringify({
+        sent_at: email.sent_at ?? null,
+        subject: typeof email.subject === 'string'
+            ? email.subject.trim().toLowerCase()
+            : null,
+        participants,
+        content: email.content ?? null,
+    });
+    return (0, node_crypto_1.createHash)('sha256').update(evidence).digest('hex');
+}
+function compareEmailsNewestFirst(left, right) {
+    const leftEmail = (left ?? {});
+    const rightEmail = (right ?? {});
+    const byDate = String(rightEmail.sent_at ?? '').localeCompare(String(leftEmail.sent_at ?? ''));
+    return byDate || emailIdentity(left).localeCompare(emailIdentity(right));
 }
 function printCollection(result) {
     console.log((0, json_1.formatJson)(result));

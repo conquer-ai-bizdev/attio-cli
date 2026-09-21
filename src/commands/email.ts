@@ -1,8 +1,8 @@
 import { Command } from 'commander';
+import { createHash } from 'node:crypto';
 import { AttioClient } from '../api/client';
 import { callAttio } from '../api/connected-service';
-import { EmailEndpoints, ListEmailsOptions } from '../api/endpoints/emails';
-import { Email } from '../api/types';
+import { RecordEndpoints } from '../api/endpoints/records';
 import { formatJson } from '../formatters/json';
 import { requirePageLimit } from '../utils/page-limit';
 import { attioExclusiveLowerBound } from '../utils/time-window';
@@ -21,10 +21,7 @@ export function createEmailCommand(): Command {
   email
     .command('list')
     .description('List email metadata')
-    .option(
-      '--company <record-id>',
-      'Emails Attio associates with this Company record'
-    )
+    .option('--company <record-id>', "Emails matching this Company's domains")
     .option('--participant <addresses...>', 'External participant addresses')
     .option('--domain <domain>', 'External participant domain')
     .option('--from <timestamp>', 'Inclusive interval start')
@@ -36,6 +33,7 @@ export function createEmailCommand(): Command {
     .option('--limit <number>', 'Page size, maximum 50', parseInt)
     .option('--cursor <cursor>', 'Continue from this cursor')
     .option('--all', 'Fetch every page')
+    .option('--full', 'Include the complete body of every returned email')
     .action(async (options) => {
       try {
         if (options.all && options.cursor) {
@@ -55,16 +53,30 @@ export function createEmailCommand(): Command {
         }
 
         if (options.company) {
-          const emailApi = new EmailEndpoints(new AttioClient());
-          const request = linkedCompanyEmailArgs(options);
-          const result = options.all
-            ? await emailApi.listAllEmails(request)
-            : await emailApi.listEmailsPage(request);
-          printCollection({
-            emails: result.data.map(normalizeLinkedEmailMetadata),
-            has_more: 'nextCursor' in result && result.nextCursor !== null,
-            next_cursor: 'nextCursor' in result ? result.nextCursor : null,
-          });
+          const domains = await getCompanyDomains(String(options.company));
+          if (domains.length > 1 && !options.all) {
+            throw new Error(
+              'This company has multiple domains. Use --all to combine them completely.'
+            );
+          }
+          if (options.cursor && domains.length > 1) {
+            throw new Error(
+              'A cursor cannot span multiple company domains. Use --all.'
+            );
+          }
+
+          const pages = [];
+          for (const domain of domains) {
+            const request = emailSearchArgs({ ...options, domain });
+            pages.push(
+              options.all
+                ? await listAllEmails(request)
+                : await callAttio('search-emails-by-metadata', request)
+            );
+          }
+          printCollection(
+            await finalizeEmailPage(combineEmailPages(pages), options.full)
+          );
           return;
         }
 
@@ -72,7 +84,7 @@ export function createEmailCommand(): Command {
         const result = options.all
           ? await listAllEmails(request)
           : await callAttio('search-emails-by-metadata', request);
-        printCollection(normalizeEmailPage(result));
+        printCollection(await finalizeEmailPage(result, options.full));
       } catch (error) {
         fail(error);
       }
@@ -152,17 +164,19 @@ function emailSearchArgs(
 async function listAllEmails(
   request: Record<string, unknown>
 ): Promise<McpEmailPage> {
-  const emails: unknown[] = [];
+  const emails = new Map<string, unknown>();
   let cursor: string | undefined;
   do {
     const page = (await callAttio(
       'search-emails-by-metadata',
       compact({ limit: 50, ...request, cursor })
     )) as McpEmailPage;
-    emails.push(...(Array.isArray(page.emails) ? page.emails : []));
+    for (const email of Array.isArray(page.emails) ? page.emails : []) {
+      emails.set(emailIdentity(email), email);
+    }
     cursor = page.has_more && page.next_cursor ? page.next_cursor : undefined;
   } while (cursor);
-  return { emails, has_more: false, next_cursor: null };
+  return { emails: [...emails.values()], has_more: false, next_cursor: null };
 }
 
 function normalizeEmailPage(result: unknown): unknown {
@@ -173,45 +187,6 @@ function normalizeEmailPage(result: unknown): unknown {
   return {
     ...page,
     emails: page.emails.map(normalizeEmailMetadata),
-  };
-}
-
-function linkedCompanyEmailArgs(
-  options: Record<string, unknown>
-): ListEmailsOptions {
-  return {
-    linkedObject: 'companies',
-    linkedRecordIds: [String(options.company)],
-    sentAfter:
-      typeof options.from === 'string'
-        ? attioExclusiveLowerBound(options.from)
-        : undefined,
-    sentBefore: typeof options.before === 'string' ? options.before : undefined,
-    excludeAutomatedParticipants:
-      options.excludeAutomatedParticipants === true ? true : undefined,
-    limit: typeof options.limit === 'number' ? options.limit : undefined,
-    cursor: typeof options.cursor === 'string' ? options.cursor : undefined,
-  };
-}
-
-function normalizeLinkedEmailMetadata(email: Email): Record<string, unknown> {
-  const addresses = (role: string): string[] =>
-    email.participants
-      .filter((participant) => participant.role === role)
-      .map((participant) => participant.email_address);
-
-  return {
-    mailbox_id: email.id.mailbox_id,
-    email_id: email.id.email_id,
-    sent_at: email.sent_at,
-    direction: email.direction,
-    subject: email.subject_line,
-    from: addresses('from')[0] ?? null,
-    to: addresses('to'),
-    cc: addresses('cc'),
-    bcc: addresses('bcc'),
-    participants: email.participants,
-    linked_records: email.linked_records,
   };
 }
 
@@ -226,6 +201,155 @@ function normalizeEmailMetadata(value: unknown): unknown {
     from: email.from ?? sender ?? null,
     to: email.to ?? recipients ?? [],
   };
+}
+
+async function getCompanyDomains(companyId: string): Promise<string[]> {
+  const company = await new RecordEndpoints(new AttioClient()).getRecord(
+    'companies',
+    companyId
+  );
+  const values = Array.isArray(company.values.domains)
+    ? company.values.domains
+    : [];
+  const domains = new Set<string>();
+
+  for (const value of values) {
+    if (!value || typeof value !== 'object') continue;
+    const item = value as Record<string, unknown>;
+    const domain = [item.root_domain, item.domain, item.value].find(
+      (candidate): candidate is string =>
+        typeof candidate === 'string' && candidate.trim().length > 0
+    );
+    if (domain) domains.add(domain.trim().toLowerCase());
+  }
+
+  if (domains.size === 0) {
+    throw new Error(
+      `Company ${companyId} has no domain, so its emails cannot be selected reliably.`
+    );
+  }
+  return [...domains];
+}
+
+function combineEmailPages(pages: unknown[]): McpEmailPage {
+  const emails = new Map<string, unknown>();
+  let hasMore = false;
+  let nextCursor: string | null = null;
+
+  for (const value of pages) {
+    if (!value || typeof value !== 'object') continue;
+    const page = value as McpEmailPage;
+    for (const email of Array.isArray(page.emails) ? page.emails : []) {
+      emails.set(emailIdentity(email), email);
+    }
+    hasMore ||= page.has_more === true;
+    nextCursor ??= page.next_cursor ?? null;
+  }
+
+  return {
+    emails: [...emails.values()],
+    has_more: hasMore,
+    next_cursor: nextCursor,
+  };
+}
+
+async function finalizeEmailPage(
+  result: unknown,
+  includeContent: boolean
+): Promise<unknown> {
+  const normalized = normalizeEmailPage(result);
+  if (!normalized || typeof normalized !== 'object') return normalized;
+  const page = normalized as McpEmailPage & Record<string, unknown>;
+  if (!Array.isArray(page.emails)) return normalized;
+
+  let emails = deduplicateExactEmails(page.emails);
+  if (includeContent) {
+    emails = await includeEmailContent(emails);
+    emails = deduplicateLogicalEmails(emails);
+  }
+  emails.sort(compareEmailsNewestFirst);
+
+  return { ...page, emails };
+}
+
+function deduplicateExactEmails(emails: unknown[]): unknown[] {
+  return [
+    ...new Map(emails.map((email) => [emailIdentity(email), email])).values(),
+  ];
+}
+
+async function includeEmailContent(emails: unknown[]): Promise<unknown[]> {
+  const expanded: unknown[] = [];
+  const concurrency = 6;
+
+  for (let offset = 0; offset < emails.length; offset += concurrency) {
+    const batch = emails.slice(offset, offset + concurrency);
+    expanded.push(
+      ...(await Promise.all(
+        batch.map(async (value) => {
+          if (!value || typeof value !== 'object') return value;
+          const email = value as Record<string, unknown>;
+          const mailboxId = String(email.mailbox_id ?? '');
+          const emailId = String(email.email_id ?? '');
+          if (!mailboxId || !emailId) {
+            throw new Error(
+              'Attio returned an email without mailbox_id and email_id.'
+            );
+          }
+          const content = await callAttio('get-email-content', {
+            mailbox_id: mailboxId,
+            email_id: emailId,
+          });
+          return { ...email, content };
+        })
+      ))
+    );
+  }
+
+  return expanded;
+}
+
+function deduplicateLogicalEmails(emails: unknown[]): unknown[] {
+  const unique = new Map<string, unknown>();
+  for (const email of emails) {
+    unique.set(emailFingerprint(email), email);
+  }
+  return [...unique.values()];
+}
+
+function emailIdentity(value: unknown): string {
+  if (!value || typeof value !== 'object') return JSON.stringify(value);
+  const email = value as Record<string, unknown>;
+  return `${String(email.mailbox_id ?? '')}:${String(email.email_id ?? '')}`;
+}
+
+function emailFingerprint(value: unknown): string {
+  if (!value || typeof value !== 'object') return emailIdentity(value);
+  const email = value as Record<string, unknown>;
+  const participants = [email.from, email.to, email.cc, email.bcc]
+    .flatMap((item) => (Array.isArray(item) ? item : [item]))
+    .filter((item): item is string => typeof item === 'string')
+    .map((item) => item.trim().toLowerCase())
+    .sort();
+  const evidence = JSON.stringify({
+    sent_at: email.sent_at ?? null,
+    subject:
+      typeof email.subject === 'string'
+        ? email.subject.trim().toLowerCase()
+        : null,
+    participants,
+    content: email.content ?? null,
+  });
+  return createHash('sha256').update(evidence).digest('hex');
+}
+
+function compareEmailsNewestFirst(left: unknown, right: unknown): number {
+  const leftEmail = (left ?? {}) as Record<string, unknown>;
+  const rightEmail = (right ?? {}) as Record<string, unknown>;
+  const byDate = String(rightEmail.sent_at ?? '').localeCompare(
+    String(leftEmail.sent_at ?? '')
+  );
+  return byDate || emailIdentity(left).localeCompare(emailIdentity(right));
 }
 
 function printCollection(result: unknown): void {

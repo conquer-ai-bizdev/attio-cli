@@ -521,48 +521,6 @@ export const CommentSchema = z
 
 export type Comment = z.infer<typeof CommentSchema>;
 
-// Email metadata (content is not available from the public REST endpoint)
-export const EmailSchema = z
-  .object({
-    id: z.object({
-      workspace_id: z.string(),
-      mailbox_id: z.string(),
-      email_id: z.string(),
-    }),
-    sent_at: z.string(),
-    direction: z.enum(['inbound', 'outbound']),
-    subject_line: z.string().nullable(),
-    participants: z.array(
-      z
-        .object({
-          role: z.enum(['from', 'reply-to', 'to', 'cc', 'bcc']),
-          email_address: z.string(),
-          email_domain: z.string(),
-          name: z.string().nullable(),
-        })
-        .passthrough()
-    ),
-    linked_records: z.array(
-      z
-        .object({
-          object_slug: z.string(),
-          object_id: z.string(),
-          record_id: z.string(),
-        })
-        .passthrough()
-    ),
-  })
-  .passthrough();
-
-export type Email = z.infer<typeof EmailSchema>;
-
-export const EmailsResponseSchema = z.object({
-  data: z.array(EmailSchema),
-  pagination: z.object({
-    next_cursor: z.string().nullable(),
-  }),
-});
-
 // Select Option
 export const SelectOptionIdSchema = z.object({
   workspace_id: z.string(),
