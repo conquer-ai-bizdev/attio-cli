@@ -23,7 +23,7 @@ function createEmailCommand() {
         .option('--limit <number>', 'Page size, maximum 50', parseInt)
         .option('--cursor <cursor>', 'Continue from this cursor')
         .option('--all', 'Fetch every page')
-        .option('--full', 'Include the complete body of every returned email')
+        .option('--full-body', 'Include the complete body of every returned email')
         .action(async (options) => {
         try {
             if (options.all && options.cursor) {
@@ -38,28 +38,23 @@ function createEmailCommand() {
                 throw new Error('Use either --domain or --participant, not both.');
             }
             if (options.company) {
+                if (options.cursor) {
+                    throw new Error('Company email lists are complete by default and do not accept --cursor.');
+                }
                 const domains = await getCompanyDomains(String(options.company));
-                if (domains.length > 1 && !options.all) {
-                    throw new Error('This company has multiple domains. Use --all to combine them completely.');
-                }
-                if (options.cursor && domains.length > 1) {
-                    throw new Error('A cursor cannot span multiple company domains. Use --all.');
-                }
                 const pages = [];
                 for (const domain of domains) {
                     const request = emailSearchArgs({ ...options, domain });
-                    pages.push(options.all
-                        ? await listAllEmails(request)
-                        : await (0, connected_service_1.callAttio)('search-emails-by-metadata', request));
+                    pages.push(await listAllEmails(request));
                 }
-                printCollection(await finalizeEmailPage(combineEmailPages(pages), options.full));
+                printCollection(await finalizeEmailPage(combineEmailPages(pages), options.fullBody));
                 return;
             }
             const request = emailSearchArgs(options);
             const result = options.all
                 ? await listAllEmails(request)
                 : await (0, connected_service_1.callAttio)('search-emails-by-metadata', request);
-            printCollection(await finalizeEmailPage(result, options.full));
+            printCollection(await finalizeEmailPage(result, options.fullBody));
         }
         catch (error) {
             fail(error);
