@@ -2,7 +2,9 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createEmailCommand = createEmailCommand;
 const commander_1 = require("commander");
+const client_1 = require("../api/client");
 const connected_service_1 = require("../api/connected-service");
+const emails_1 = require("../api/endpoints/emails");
 const json_1 = require("../formatters/json");
 const page_limit_1 = require("../utils/page-limit");
 const time_window_1 = require("../utils/time-window");
@@ -11,6 +13,7 @@ function createEmailCommand() {
     email
         .command('list')
         .description('List email metadata')
+        .option('--company <record-id>', "Emails Attio associates with this Company record")
         .option('--participant <addresses...>', 'External participant addresses')
         .option('--domain <domain>', 'External participant domain')
         .option('--from <timestamp>', 'Inclusive interval start')
@@ -25,8 +28,25 @@ function createEmailCommand() {
                 throw new Error('Cannot combine --all with --cursor.');
             }
             (0, page_limit_1.requirePageLimit)(options.limit, 50, 'Email');
+            if (options.company &&
+                (options.domain || options.participant?.length)) {
+                throw new Error('Use --company by itself, without --domain or --participant.');
+            }
             if (options.domain && options.participant?.length) {
                 throw new Error('Use either --domain or --participant, not both.');
+            }
+            if (options.company) {
+                const emailApi = new emails_1.EmailEndpoints(new client_1.AttioClient());
+                const request = linkedCompanyEmailArgs(options);
+                const result = options.all
+                    ? await emailApi.listAllEmails(request)
+                    : await emailApi.listEmailsPage(request);
+                printCollection({
+                    emails: result.data.map(normalizeLinkedEmailMetadata),
+                    has_more: 'nextCursor' in result && result.nextCursor !== null,
+                    next_cursor: 'nextCursor' in result ? result.nextCursor : null,
+                });
+                return;
             }
             const request = emailSearchArgs(options);
             const result = options.all
@@ -111,6 +131,37 @@ function normalizeEmailPage(result) {
     return {
         ...page,
         emails: page.emails.map(normalizeEmailMetadata),
+    };
+}
+function linkedCompanyEmailArgs(options) {
+    return {
+        linkedObject: 'companies',
+        linkedRecordIds: [String(options.company)],
+        sentAfter: typeof options.from === 'string'
+            ? (0, time_window_1.attioExclusiveLowerBound)(options.from)
+            : undefined,
+        sentBefore: typeof options.before === 'string' ? options.before : undefined,
+        excludeAutomatedParticipants: options.excludeAutomatedParticipants === true ? true : undefined,
+        limit: typeof options.limit === 'number' ? options.limit : undefined,
+        cursor: typeof options.cursor === 'string' ? options.cursor : undefined,
+    };
+}
+function normalizeLinkedEmailMetadata(email) {
+    const addresses = (role) => email.participants
+        .filter((participant) => participant.role === role)
+        .map((participant) => participant.email_address);
+    return {
+        mailbox_id: email.id.mailbox_id,
+        email_id: email.id.email_id,
+        sent_at: email.sent_at,
+        direction: email.direction,
+        subject: email.subject_line,
+        from: addresses('from')[0] ?? null,
+        to: addresses('to'),
+        cc: addresses('cc'),
+        bcc: addresses('bcc'),
+        participants: email.participants,
+        linked_records: email.linked_records,
     };
 }
 function normalizeEmailMetadata(value) {

@@ -1,1 +1,1 @@
-{"version":3,"file":"email.d.ts","sourceRoot":"","sources":["../../src/commands/email.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,OAAO,EAAE,MAAM,WAAW,CAAC;AAYpC,wBAAgB,kBAAkB,IAAI,OAAO,CAyF5C"}
+{"version":3,"file":"email.d.ts","sourceRoot":"","sources":["../../src/commands/email.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,OAAO,EAAE,MAAM,WAAW,CAAC;AAkBpC,wBAAgB,kBAAkB,IAAI,OAAO,CAoH5C"}
