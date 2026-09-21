@@ -197,6 +197,7 @@ function normalizeEmailMetadata(value: unknown): unknown {
   if (!value || typeof value !== 'object') return value;
   const email = value as Record<string, unknown>;
   const { subject_line, sender, recipients, ...rest } = email;
+  delete rest.snippet;
 
   return {
     ...rest,

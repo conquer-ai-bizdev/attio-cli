@@ -147,6 +147,7 @@ function normalizeEmailMetadata(value) {
         return value;
     const email = value;
     const { subject_line, sender, recipients, ...rest } = email;
+    delete rest.snippet;
     return {
         ...rest,
         subject: email.subject ?? subject_line ?? null,
