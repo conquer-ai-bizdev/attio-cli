@@ -19,6 +19,11 @@ export interface MeetingPage {
   nextCursor: string | null;
 }
 
+export interface MeetingLink {
+  object: string;
+  record_id: string;
+}
+
 export interface CompleteMeetingInventory {
   data: Meeting[];
   pagination: {
@@ -95,6 +100,27 @@ export class MeetingEndpoints {
 
   async getMeeting(meetingId: string): Promise<Meeting> {
     const response = await this.client.get(`/meetings/${meetingId}`);
+    const dataResponse = response as { data: unknown };
+    return validate(MeetingSchema, dataResponse.data);
+  }
+
+  async appendLinkedRecords(
+    meetingId: string,
+    linkedRecords: MeetingLink[]
+  ): Promise<Meeting> {
+    if (!meetingId.trim()) throw new Error('Meeting ID is required.');
+    if (linkedRecords.length < 1 || linkedRecords.length > 50) {
+      throw new Error('Provide between 1 and 50 meeting links.');
+    }
+    for (const link of linkedRecords) {
+      if (!link.object.trim() || !link.record_id.trim()) {
+        throw new Error('Each meeting link requires an object and record ID.');
+      }
+    }
+
+    const response = await this.client.patch(`/meetings/${meetingId}`, {
+      data: { linked_records: linkedRecords },
+    });
     const dataResponse = response as { data: unknown };
     return validate(MeetingSchema, dataResponse.data);
   }

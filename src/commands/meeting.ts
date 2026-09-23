@@ -156,7 +156,56 @@ export function createMeetingCommand(): Command {
       }
     });
 
+  meeting
+    .command('link')
+    .description(
+      'Append record links to a meeting without replacing existing links'
+    )
+    .argument('<meeting-id>', 'Meeting ID')
+    .argument('<records...>', 'Records as object:record-id')
+    .action(async (meetingId: string, records: string[], options) => {
+      try {
+        const linkedRecords = records.map(parseMeetingLink);
+        const uniqueLinks = [
+          ...new Map(
+            linkedRecords.map((link) => [
+              `${link.object}:${link.record_id}`,
+              link,
+            ])
+          ).values(),
+        ];
+        const client = new AttioClient(options.apiKey);
+        const meetingApi = new MeetingEndpoints(client);
+        const result = await meetingApi.appendLinkedRecords(
+          meetingId,
+          uniqueLinks
+        );
+
+        console.log(formatJson(result));
+      } catch (error) {
+        if (error instanceof Error) {
+          console.error(`Error: ${error.message}`);
+          process.exit(1);
+        }
+        throw error;
+      }
+    });
+
   return meeting;
+}
+
+function parseMeetingLink(value: string): {
+  object: string;
+  record_id: string;
+} {
+  const separator = value.indexOf(':');
+  if (separator < 1 || separator === value.length - 1) {
+    throw new Error(`Invalid record link "${value}". Use object:record-id.`);
+  }
+  return {
+    object: value.slice(0, separator),
+    record_id: value.slice(separator + 1),
+  };
 }
 
 function compact(value: Record<string, unknown>): Record<string, unknown> {

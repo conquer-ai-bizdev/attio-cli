@@ -20,7 +20,7 @@ describe('MeetingEndpoints', () => {
   let meetings: MeetingEndpoints;
 
   beforeEach(() => {
-    mockClient = { get: vi.fn() } as unknown as AttioClient;
+    mockClient = { get: vi.fn(), patch: vi.fn() } as unknown as AttioClient;
     meetings = new MeetingEndpoints(mockClient);
   });
 
@@ -82,5 +82,34 @@ describe('MeetingEndpoints', () => {
       meetings.listMeetingsPage({ linkedObject: 'companies' })
     ).rejects.toThrow('must be provided together');
     expect(mockClient.get).not.toHaveBeenCalled();
+  });
+
+  it('appends linked records without replacing existing links', async () => {
+    vi.mocked(mockClient.patch).mockResolvedValue({
+      data: { ...meeting('meeting-id'), linked_records: [] },
+    });
+
+    await meetings.appendLinkedRecords('meeting-id', [
+      { object: 'companies', record_id: 'company-id' },
+    ]);
+
+    expect(mockClient.patch).toHaveBeenCalledWith('/meetings/meeting-id', {
+      data: {
+        linked_records: [{ object: 'companies', record_id: 'company-id' }],
+      },
+    });
+  });
+
+  it('rejects more links than Attio accepts in one request', async () => {
+    await expect(
+      meetings.appendLinkedRecords(
+        'meeting-id',
+        Array.from({ length: 51 }, (_, index) => ({
+          object: 'companies',
+          record_id: `company-${index}`,
+        }))
+      )
+    ).rejects.toThrow('between 1 and 50');
+    expect(mockClient.patch).not.toHaveBeenCalled();
   });
 });
