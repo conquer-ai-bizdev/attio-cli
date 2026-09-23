@@ -15,6 +15,10 @@ export interface MeetingPage {
     data: Meeting[];
     nextCursor: string | null;
 }
+export interface MeetingLink {
+    object: string;
+    record_id: string;
+}
 export interface CompleteMeetingInventory {
     data: Meeting[];
     pagination: {
@@ -31,5 +35,6 @@ export declare class MeetingEndpoints {
     listMeetingsPage(options?: ListMeetingsOptions): Promise<MeetingPage>;
     listAllMeetings(options?: Omit<ListMeetingsOptions, 'cursor'>): Promise<CompleteMeetingInventory>;
     getMeeting(meetingId: string): Promise<Meeting>;
+    appendLinkedRecords(meetingId: string, linkedRecords: MeetingLink[]): Promise<Meeting>;
 }
 //# sourceMappingURL=meetings.d.ts.map

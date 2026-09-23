@@ -16,6 +16,7 @@ const call_recording_1 = require("./commands/call-recording");
 const file_1 = require("./commands/file");
 const comment_1 = require("./commands/comment");
 const report_1 = require("./commands/report");
+const webhook_1 = require("./commands/webhook");
 const program = new commander_1.Command();
 program
     .name('attio')
@@ -39,6 +40,7 @@ program.addCommand((0, call_recording_1.createCallRecordingCommand)());
 program.addCommand((0, file_1.createFileCommand)());
 program.addCommand((0, comment_1.createCommentCommand)());
 program.addCommand((0, report_1.createReportCommand)());
+program.addCommand((0, webhook_1.createWebhookCommand)());
 function rejectUnexpectedArguments(command) {
     command.allowExcessArguments(false);
     for (const child of command.commands)

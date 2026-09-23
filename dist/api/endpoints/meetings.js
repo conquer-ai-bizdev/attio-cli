@@ -70,6 +70,23 @@ class MeetingEndpoints {
         const dataResponse = response;
         return (0, validation_1.validate)(types_1.MeetingSchema, dataResponse.data);
     }
+    async appendLinkedRecords(meetingId, linkedRecords) {
+        if (!meetingId.trim())
+            throw new Error('Meeting ID is required.');
+        if (linkedRecords.length < 1 || linkedRecords.length > 50) {
+            throw new Error('Provide between 1 and 50 meeting links.');
+        }
+        for (const link of linkedRecords) {
+            if (!link.object.trim() || !link.record_id.trim()) {
+                throw new Error('Each meeting link requires an object and record ID.');
+            }
+        }
+        const response = await this.client.patch(`/meetings/${meetingId}`, {
+            data: { linked_records: linkedRecords },
+        });
+        const dataResponse = response;
+        return (0, validation_1.validate)(types_1.MeetingSchema, dataResponse.data);
+    }
 }
 exports.MeetingEndpoints = MeetingEndpoints;
 function validateMeetingOptions(options) {
