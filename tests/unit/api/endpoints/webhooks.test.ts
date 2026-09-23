@@ -28,7 +28,9 @@ describe('WebhookEndpoints', () => {
     expect(client.post).toHaveBeenCalledWith('/webhooks', {
       data: {
         target_url: 'https://example.com/attio/webhooks',
-        subscriptions: [{ event_type: 'call-recording.created' }],
+        subscriptions: [
+          { event_type: 'call-recording.created', filter: null },
+        ],
       },
     });
   });

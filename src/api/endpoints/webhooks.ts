@@ -19,6 +19,7 @@ export class WebhookEndpoints {
         target_url: targetUrl,
         subscriptions: [...new Set(eventTypes)].map((eventType) => ({
           event_type: eventType,
+          filter: null,
         })),
       },
     });
