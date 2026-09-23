@@ -15,6 +15,7 @@ import { createCallRecordingCommand } from './commands/call-recording';
 import { createFileCommand } from './commands/file';
 import { createCommentCommand } from './commands/comment';
 import { createReportCommand } from './commands/report';
+import { createWebhookCommand } from './commands/webhook';
 
 const program = new Command();
 
@@ -45,6 +46,7 @@ program.addCommand(createCallRecordingCommand());
 program.addCommand(createFileCommand());
 program.addCommand(createCommentCommand());
 program.addCommand(createReportCommand());
+program.addCommand(createWebhookCommand());
 
 function rejectUnexpectedArguments(command: Command): void {
   command.allowExcessArguments(false);
