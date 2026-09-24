@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getRestAccessToken = getRestAccessToken;
 exports.getMcpAccessToken = getMcpAccessToken;
+const oauth_file_1 = require("./oauth-file");
 const DEFAULT_REST_CONNECTOR = 'api.attio.com/attio-rest-files';
 const DEFAULT_MCP_CONNECTOR = 'mcp.attio.com/attio-mcp-eve-v3';
 const DEFAULT_MCP_SUBJECT = 'crm-agent-eve';
@@ -23,6 +24,9 @@ async function getRestAccessToken(explicitToken, forceRefresh = false) {
 async function getMcpAccessToken(forceRefresh = false) {
     if (process.env.ATTIO_MCP_TOKEN)
         return process.env.ATTIO_MCP_TOKEN;
+    const fileToken = await (0, oauth_file_1.getFileMcpAccessToken)(forceRefresh);
+    if (fileToken)
+        return fileToken;
     if (forceRefresh)
         mcpTokenPromise = undefined;
     mcpTokenPromise ??= getConnectToken(process.env.ATTIO_MCP_CONNECTOR || DEFAULT_MCP_CONNECTOR, mcpTokenParams(), forceRefresh, 'Attio');
