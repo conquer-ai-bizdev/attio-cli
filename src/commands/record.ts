@@ -8,6 +8,7 @@ import {
   formatRecords,
   formatRecordSearchResponse,
   normalizeRecordWriteValues,
+  splitRecordUpdateValues,
 } from '../formatters/record';
 import { validateFilterStructure } from '../utils/filter-validator';
 import { callAttio } from '../api/connected-service';
@@ -249,13 +250,33 @@ export function createRecordCommand(): Command {
           const recordApi = new RecordEndpoints(client);
 
           const input = await readJsonInput(json, 'Updated record values');
-          const data = normalizeRecordWriteValues(input);
-          await callAttio('update-record', {
-            object: objectSlug,
-            record_id: recordId,
-            values: data.values,
-            patch_multiselect_values: !options.replace,
-          });
+          const update = splitRecordUpdateValues(input);
+          const data = normalizeRecordWriteValues(update.writeValues);
+
+          if (Object.keys(update.clearValues).length > 0) {
+            await callAttio('update-record', {
+              object: objectSlug,
+              record_id: recordId,
+              values: update.clearValues,
+              patch_multiselect_values: false,
+            });
+          }
+
+          if (
+            !(
+              typeof data.values === 'object' &&
+              data.values !== null &&
+              !Array.isArray(data.values) &&
+              Object.keys(data.values).length === 0
+            )
+          ) {
+            await callAttio('update-record', {
+              object: objectSlug,
+              record_id: recordId,
+              values: data.values,
+              patch_multiselect_values: !options.replace,
+            });
+          }
           const rec = await recordApi.getRecord(objectSlug, recordId);
           assertRequestedCurrencies(rec, data.requestedCurrencies);
 

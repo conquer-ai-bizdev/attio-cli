@@ -5,6 +5,11 @@ export interface NormalizedRecordWrite {
   requestedCurrencies: Record<string, string>;
 }
 
+export interface SplitRecordUpdate {
+  clearValues: Record<string, never[]>;
+  writeValues: unknown;
+}
+
 function isObject(value: unknown): value is JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -125,6 +130,23 @@ export function normalizeRecordWriteValues(
   );
 
   return { values: normalized, requestedCurrencies };
+}
+
+export function splitRecordUpdateValues(values: unknown): SplitRecordUpdate {
+  if (!isObject(values)) return { clearValues: {}, writeValues: values };
+
+  const clearValues: Record<string, never[]> = {};
+  const writeEntries: [string, unknown][] = [];
+
+  for (const [slug, value] of Object.entries(values)) {
+    if (value === null) clearValues[slug] = [];
+    else writeEntries.push([slug, value]);
+  }
+
+  return {
+    clearValues,
+    writeValues: Object.fromEntries(writeEntries),
+  };
 }
 
 export function assertRequestedCurrencies(

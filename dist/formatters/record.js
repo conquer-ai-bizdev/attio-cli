@@ -4,6 +4,7 @@ exports.formatRecord = formatRecord;
 exports.formatRecords = formatRecords;
 exports.formatRecordSearchResponse = formatRecordSearchResponse;
 exports.normalizeRecordWriteValues = normalizeRecordWriteValues;
+exports.splitRecordUpdateValues = splitRecordUpdateValues;
 exports.assertRequestedCurrencies = assertRequestedCurrencies;
 function isObject(value) {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -101,6 +102,22 @@ function normalizeRecordWriteValues(values) {
         return [slug, { currency_value: amount }];
     }));
     return { values: normalized, requestedCurrencies };
+}
+function splitRecordUpdateValues(values) {
+    if (!isObject(values))
+        return { clearValues: {}, writeValues: values };
+    const clearValues = {};
+    const writeEntries = [];
+    for (const [slug, value] of Object.entries(values)) {
+        if (value === null)
+            clearValues[slug] = [];
+        else
+            writeEntries.push([slug, value]);
+    }
+    return {
+        clearValues,
+        writeValues: Object.fromEntries(writeEntries),
+    };
 }
 function assertRequestedCurrencies(record, requestedCurrencies) {
     if (Object.keys(requestedCurrencies).length === 0)

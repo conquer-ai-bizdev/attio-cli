@@ -4,6 +4,7 @@ import {
   formatRecord,
   formatRecordSearchResponse,
   normalizeRecordWriteValues,
+  splitRecordUpdateValues,
 } from '../../../src/formatters/record';
 
 describe('record formatters', () => {
@@ -73,6 +74,13 @@ describe('record write formatting', () => {
     ).toEqual({
       values: { value: { currency_value: 180000 } },
       requestedCurrencies: { value: 'USD' },
+    });
+  });
+
+  it('turns null update fields into explicit clears', () => {
+    expect(splitRecordUpdateValues({ source_6: null, name: 'EY' })).toEqual({
+      clearValues: { source_6: [] },
+      writeValues: { name: 'EY' },
     });
   });
 

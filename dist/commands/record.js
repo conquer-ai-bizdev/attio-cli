@@ -200,13 +200,27 @@ function createRecordCommand() {
             const client = new client_1.AttioClient(options.apiKey);
             const recordApi = new records_1.RecordEndpoints(client);
             const input = await (0, stdin_1.readJsonInput)(json, 'Updated record values');
-            const data = (0, record_1.normalizeRecordWriteValues)(input);
-            await (0, connected_service_1.callAttio)('update-record', {
-                object: objectSlug,
-                record_id: recordId,
-                values: data.values,
-                patch_multiselect_values: !options.replace,
-            });
+            const update = (0, record_1.splitRecordUpdateValues)(input);
+            const data = (0, record_1.normalizeRecordWriteValues)(update.writeValues);
+            if (Object.keys(update.clearValues).length > 0) {
+                await (0, connected_service_1.callAttio)('update-record', {
+                    object: objectSlug,
+                    record_id: recordId,
+                    values: update.clearValues,
+                    patch_multiselect_values: false,
+                });
+            }
+            if (!(typeof data.values === 'object' &&
+                data.values !== null &&
+                !Array.isArray(data.values) &&
+                Object.keys(data.values).length === 0)) {
+                await (0, connected_service_1.callAttio)('update-record', {
+                    object: objectSlug,
+                    record_id: recordId,
+                    values: data.values,
+                    patch_multiselect_values: !options.replace,
+                });
+            }
             const rec = await recordApi.getRecord(objectSlug, recordId);
             (0, record_1.assertRequestedCurrencies)(rec, data.requestedCurrencies);
             // Apply compact formatting unless verbose mode is enabled
