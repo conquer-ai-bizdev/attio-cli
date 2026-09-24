@@ -20,6 +20,10 @@ attio --help
 Node.js 18 or newer is required. Credentials are resolved and refreshed
 automatically for the Conquer workspace. `ATTIO_API_KEY` and the global
 `--api-key` option may provide an explicit credential for bounded local use.
+Outside Vercel, `ATTIO_AUTH_FILE` may point to a persistent OAuth credential
+file. The CLI refreshes that credential and saves rotated refresh tokens in the
+same file. This keeps authentication inside the CLI rather than exposing an
+Attio connection to the agent.
 
 ## Commands
 
