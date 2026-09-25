@@ -168,6 +168,9 @@ export function createAttributeCommand(): Command {
     .option('--unique <value>', 'Set unique (true|false)', (val) =>
       val === 'true' ? true : val === 'false' ? false : undefined
     )
+    .option('--archived <value>', 'Set archived (true|false)', (val) =>
+      val === 'true' ? true : val === 'false' ? false : undefined
+    )
     .action(
       async (
         target: string,
@@ -192,10 +195,12 @@ export function createAttributeCommand(): Command {
             data.data.is_required = options.required;
           if (options.unique !== undefined)
             data.data.is_unique = options.unique;
+          if (options.archived !== undefined)
+            data.data.is_archived = options.archived;
 
           if (Object.keys(data.data).length === 0) {
             console.error(
-              'Error: Must provide at least one field to update (--title, --description, --required, --unique)'
+              'Error: Must provide at least one field to update (--title, --description, --required, --unique, --archived)'
             );
             process.exit(1);
           }

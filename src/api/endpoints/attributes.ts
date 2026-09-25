@@ -38,6 +38,7 @@ export interface UpdateAttributeData {
     description?: string;
     is_required?: boolean;
     is_unique?: boolean;
+    is_archived?: boolean;
     config?: Record<string, unknown>;
   };
 }
