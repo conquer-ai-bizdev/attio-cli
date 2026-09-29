@@ -243,10 +243,13 @@ exports.TaskSchema = zod_1.z
     is_completed: zod_1.z.boolean(),
     completed_at: exports.TimestampSchema.nullable().optional(),
     linked_records: zod_1.z
-        .array(zod_1.z.object({
+        .array(zod_1.z
+        .object({
         target_object: zod_1.z.string().optional(),
+        target_object_id: zod_1.z.string().optional(),
         target_record_id: zod_1.z.string().optional(),
-    }))
+    })
+        .passthrough())
         .optional(),
     assignees: zod_1.z
         .array(zod_1.z.object({

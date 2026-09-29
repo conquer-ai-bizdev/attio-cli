@@ -297,10 +297,13 @@ export const TaskSchema = z
     completed_at: TimestampSchema.nullable().optional(),
     linked_records: z
       .array(
-        z.object({
-          target_object: z.string().optional(),
-          target_record_id: z.string().optional(),
-        })
+        z
+          .object({
+            target_object: z.string().optional(),
+            target_object_id: z.string().optional(),
+            target_record_id: z.string().optional(),
+          })
+          .passthrough()
       )
       .optional(),
     assignees: z
