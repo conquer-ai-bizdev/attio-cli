@@ -1731,14 +1731,17 @@ export declare const TaskSchema: z.ZodObject<{
     completed_at: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     linked_records: z.ZodOptional<z.ZodArray<z.ZodObject<{
         target_object: z.ZodOptional<z.ZodString>;
+        target_object_id: z.ZodOptional<z.ZodString>;
         target_record_id: z.ZodOptional<z.ZodString>;
-    }, "strip", z.ZodTypeAny, {
-        target_object?: string | undefined;
-        target_record_id?: string | undefined;
-    }, {
-        target_object?: string | undefined;
-        target_record_id?: string | undefined;
-    }>, "many">>;
+    }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+        target_object: z.ZodOptional<z.ZodString>;
+        target_object_id: z.ZodOptional<z.ZodString>;
+        target_record_id: z.ZodOptional<z.ZodString>;
+    }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+        target_object: z.ZodOptional<z.ZodString>;
+        target_object_id: z.ZodOptional<z.ZodString>;
+        target_record_id: z.ZodOptional<z.ZodString>;
+    }, z.ZodTypeAny, "passthrough">>, "many">>;
     assignees: z.ZodOptional<z.ZodArray<z.ZodObject<{
         referenced_actor_type: z.ZodString;
         referenced_actor_id: z.ZodString;
@@ -1784,14 +1787,17 @@ export declare const TaskSchema: z.ZodObject<{
     completed_at: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     linked_records: z.ZodOptional<z.ZodArray<z.ZodObject<{
         target_object: z.ZodOptional<z.ZodString>;
+        target_object_id: z.ZodOptional<z.ZodString>;
         target_record_id: z.ZodOptional<z.ZodString>;
-    }, "strip", z.ZodTypeAny, {
-        target_object?: string | undefined;
-        target_record_id?: string | undefined;
-    }, {
-        target_object?: string | undefined;
-        target_record_id?: string | undefined;
-    }>, "many">>;
+    }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+        target_object: z.ZodOptional<z.ZodString>;
+        target_object_id: z.ZodOptional<z.ZodString>;
+        target_record_id: z.ZodOptional<z.ZodString>;
+    }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+        target_object: z.ZodOptional<z.ZodString>;
+        target_object_id: z.ZodOptional<z.ZodString>;
+        target_record_id: z.ZodOptional<z.ZodString>;
+    }, z.ZodTypeAny, "passthrough">>, "many">>;
     assignees: z.ZodOptional<z.ZodArray<z.ZodObject<{
         referenced_actor_type: z.ZodString;
         referenced_actor_id: z.ZodString;
@@ -1837,14 +1843,17 @@ export declare const TaskSchema: z.ZodObject<{
     completed_at: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     linked_records: z.ZodOptional<z.ZodArray<z.ZodObject<{
         target_object: z.ZodOptional<z.ZodString>;
+        target_object_id: z.ZodOptional<z.ZodString>;
         target_record_id: z.ZodOptional<z.ZodString>;
-    }, "strip", z.ZodTypeAny, {
-        target_object?: string | undefined;
-        target_record_id?: string | undefined;
-    }, {
-        target_object?: string | undefined;
-        target_record_id?: string | undefined;
-    }>, "many">>;
+    }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+        target_object: z.ZodOptional<z.ZodString>;
+        target_object_id: z.ZodOptional<z.ZodString>;
+        target_record_id: z.ZodOptional<z.ZodString>;
+    }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+        target_object: z.ZodOptional<z.ZodString>;
+        target_object_id: z.ZodOptional<z.ZodString>;
+        target_record_id: z.ZodOptional<z.ZodString>;
+    }, z.ZodTypeAny, "passthrough">>, "many">>;
     assignees: z.ZodOptional<z.ZodArray<z.ZodObject<{
         referenced_actor_type: z.ZodString;
         referenced_actor_id: z.ZodString;
@@ -1893,14 +1902,17 @@ export declare const TasksResponseSchema: z.ZodObject<{
         completed_at: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         linked_records: z.ZodOptional<z.ZodArray<z.ZodObject<{
             target_object: z.ZodOptional<z.ZodString>;
+            target_object_id: z.ZodOptional<z.ZodString>;
             target_record_id: z.ZodOptional<z.ZodString>;
-        }, "strip", z.ZodTypeAny, {
-            target_object?: string | undefined;
-            target_record_id?: string | undefined;
-        }, {
-            target_object?: string | undefined;
-            target_record_id?: string | undefined;
-        }>, "many">>;
+        }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+            target_object: z.ZodOptional<z.ZodString>;
+            target_object_id: z.ZodOptional<z.ZodString>;
+            target_record_id: z.ZodOptional<z.ZodString>;
+        }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+            target_object: z.ZodOptional<z.ZodString>;
+            target_object_id: z.ZodOptional<z.ZodString>;
+            target_record_id: z.ZodOptional<z.ZodString>;
+        }, z.ZodTypeAny, "passthrough">>, "many">>;
         assignees: z.ZodOptional<z.ZodArray<z.ZodObject<{
             referenced_actor_type: z.ZodString;
             referenced_actor_id: z.ZodString;
@@ -1946,14 +1958,17 @@ export declare const TasksResponseSchema: z.ZodObject<{
         completed_at: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         linked_records: z.ZodOptional<z.ZodArray<z.ZodObject<{
             target_object: z.ZodOptional<z.ZodString>;
+            target_object_id: z.ZodOptional<z.ZodString>;
             target_record_id: z.ZodOptional<z.ZodString>;
-        }, "strip", z.ZodTypeAny, {
-            target_object?: string | undefined;
-            target_record_id?: string | undefined;
-        }, {
-            target_object?: string | undefined;
-            target_record_id?: string | undefined;
-        }>, "many">>;
+        }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+            target_object: z.ZodOptional<z.ZodString>;
+            target_object_id: z.ZodOptional<z.ZodString>;
+            target_record_id: z.ZodOptional<z.ZodString>;
+        }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+            target_object: z.ZodOptional<z.ZodString>;
+            target_object_id: z.ZodOptional<z.ZodString>;
+            target_record_id: z.ZodOptional<z.ZodString>;
+        }, z.ZodTypeAny, "passthrough">>, "many">>;
         assignees: z.ZodOptional<z.ZodArray<z.ZodObject<{
             referenced_actor_type: z.ZodString;
             referenced_actor_id: z.ZodString;
@@ -1999,14 +2014,17 @@ export declare const TasksResponseSchema: z.ZodObject<{
         completed_at: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         linked_records: z.ZodOptional<z.ZodArray<z.ZodObject<{
             target_object: z.ZodOptional<z.ZodString>;
+            target_object_id: z.ZodOptional<z.ZodString>;
             target_record_id: z.ZodOptional<z.ZodString>;
-        }, "strip", z.ZodTypeAny, {
-            target_object?: string | undefined;
-            target_record_id?: string | undefined;
-        }, {
-            target_object?: string | undefined;
-            target_record_id?: string | undefined;
-        }>, "many">>;
+        }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+            target_object: z.ZodOptional<z.ZodString>;
+            target_object_id: z.ZodOptional<z.ZodString>;
+            target_record_id: z.ZodOptional<z.ZodString>;
+        }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+            target_object: z.ZodOptional<z.ZodString>;
+            target_object_id: z.ZodOptional<z.ZodString>;
+            target_record_id: z.ZodOptional<z.ZodString>;
+        }, z.ZodTypeAny, "passthrough">>, "many">>;
         assignees: z.ZodOptional<z.ZodArray<z.ZodObject<{
             referenced_actor_type: z.ZodString;
             referenced_actor_id: z.ZodString;
@@ -2055,14 +2073,17 @@ export declare const TasksResponseSchema: z.ZodObject<{
         completed_at: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         linked_records: z.ZodOptional<z.ZodArray<z.ZodObject<{
             target_object: z.ZodOptional<z.ZodString>;
+            target_object_id: z.ZodOptional<z.ZodString>;
             target_record_id: z.ZodOptional<z.ZodString>;
-        }, "strip", z.ZodTypeAny, {
-            target_object?: string | undefined;
-            target_record_id?: string | undefined;
-        }, {
-            target_object?: string | undefined;
-            target_record_id?: string | undefined;
-        }>, "many">>;
+        }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+            target_object: z.ZodOptional<z.ZodString>;
+            target_object_id: z.ZodOptional<z.ZodString>;
+            target_record_id: z.ZodOptional<z.ZodString>;
+        }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+            target_object: z.ZodOptional<z.ZodString>;
+            target_object_id: z.ZodOptional<z.ZodString>;
+            target_record_id: z.ZodOptional<z.ZodString>;
+        }, z.ZodTypeAny, "passthrough">>, "many">>;
         assignees: z.ZodOptional<z.ZodArray<z.ZodObject<{
             referenced_actor_type: z.ZodString;
             referenced_actor_id: z.ZodString;
@@ -2111,14 +2132,17 @@ export declare const TasksResponseSchema: z.ZodObject<{
         completed_at: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         linked_records: z.ZodOptional<z.ZodArray<z.ZodObject<{
             target_object: z.ZodOptional<z.ZodString>;
+            target_object_id: z.ZodOptional<z.ZodString>;
             target_record_id: z.ZodOptional<z.ZodString>;
-        }, "strip", z.ZodTypeAny, {
-            target_object?: string | undefined;
-            target_record_id?: string | undefined;
-        }, {
-            target_object?: string | undefined;
-            target_record_id?: string | undefined;
-        }>, "many">>;
+        }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+            target_object: z.ZodOptional<z.ZodString>;
+            target_object_id: z.ZodOptional<z.ZodString>;
+            target_record_id: z.ZodOptional<z.ZodString>;
+        }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+            target_object: z.ZodOptional<z.ZodString>;
+            target_object_id: z.ZodOptional<z.ZodString>;
+            target_record_id: z.ZodOptional<z.ZodString>;
+        }, z.ZodTypeAny, "passthrough">>, "many">>;
         assignees: z.ZodOptional<z.ZodArray<z.ZodObject<{
             referenced_actor_type: z.ZodString;
             referenced_actor_id: z.ZodString;
