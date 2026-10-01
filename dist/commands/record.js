@@ -21,7 +21,7 @@ function createRecordCommand() {
         .option('--offset <number>', 'Number of records to skip', parseInt)
         .action(async (objectSlug, query, options) => {
         try {
-            (0, page_limit_1.requirePageLimit)(options.limit, 10, 'Record search');
+            (0, page_limit_1.requirePageLimit)(options.limit, 10, 'Record search', 'Use --limit 10 and --offset to paginate.');
             const result = await (0, connected_service_1.callAttio)('search-records', compact({
                 object: objectSlug,
                 query,

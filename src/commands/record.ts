@@ -31,7 +31,12 @@ export function createRecordCommand(): Command {
     .option('--offset <number>', 'Number of records to skip', parseInt)
     .action(async (objectSlug: string, query: string, options) => {
       try {
-        requirePageLimit(options.limit, 10, 'Record search');
+        requirePageLimit(
+          options.limit,
+          10,
+          'Record search',
+          'Use --limit 10 and --offset to paginate.'
+        );
         const result = await callAttio(
           'search-records',
           compact({
